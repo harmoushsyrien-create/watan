@@ -53,29 +53,39 @@ export default async function handler(req, res) {
     let initialResponse;
     let motUrl = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
     
-    // Try multiple approaches to access the MOT website (optimized for speed)
+    // Try multiple approaches to access the MOT website (optimized for Vercel)
     const approaches = [
-      // Direct approach (most reliable)
+      // Direct approach first (works in development, might work in production)
       {
         url: motUrl,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive'
         }
       },
-      // CORS proxy approach (fallback)
+      // CORS proxy approach (backup for production)
       {
         url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      },
+      // Third option - Try different proxy service
+      {
+        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       }
     ];
 
     let lastError;
     let attempts = 0;
-    const maxAttempts = 1; // Only try 1 approach to save time and avoid 504
+    const maxAttempts = 2; // Try 2 approaches for better reliability
     
     for (const approach of approaches) {
       if (attempts >= maxAttempts) break;
@@ -106,14 +116,11 @@ export default async function handler(req, res) {
           break;
         } else {
           console.log(`Failed with status ${initialResponse.status} for approach ${attempts}: ${approach.url.substring(0, 50)}...`);
-          // If first approach fails, return immediately to avoid timeout
-          break;
+          lastError = new Error(`HTTP ${initialResponse.status}`);
         }
       } catch (fetchError) {
         console.log(`Error with approach ${attempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         lastError = fetchError;
-        // If first approach fails, return immediately to avoid timeout
-        break;
       }
     }
 
@@ -162,22 +169,33 @@ export default async function handler(req, res) {
     console.log(`Searching for ID: ${searchId}`);
 
     const searchApproaches = [
-      // Direct approach (most reliable)
+      // Direct approach first (works in development, might work in production)
       {
         url: motUrl,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Content-Type': 'application/x-www-form-urlencoded',
           'Origin': 'https://www.mot.gov.ps',
-          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
         }
       },
-      // CORS proxy approach (fallback)
+      // CORS proxy approach (backup for production)
       {
         url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      },
+      // Third option - Try different proxy service
+      {
+        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       }
     ];
@@ -185,7 +203,7 @@ export default async function handler(req, res) {
     let searchResponse;
     let searchLastError;
     let searchAttempts = 0;
-    const maxSearchAttempts = 1; // Only try 1 approach to save time and avoid 504
+    const maxSearchAttempts = 2; // Try 2 approaches for better reliability
     
     for (const approach of searchApproaches) {
       if (searchAttempts >= maxSearchAttempts) break;
@@ -217,14 +235,11 @@ export default async function handler(req, res) {
           break;
         } else {
           console.log(`Search failed with status ${searchResponse.status} for approach ${searchAttempts}: ${approach.url.substring(0, 50)}...`);
-          // If first approach fails, return immediately to avoid timeout
-          break;
+          searchLastError = new Error(`HTTP ${searchResponse.status}`);
         }
       } catch (fetchError) {
         console.log(`Search error with approach ${searchAttempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         searchLastError = fetchError;
-        // If first approach fails, return immediately to avoid timeout
-        break;
       }
     }
 
