@@ -64,7 +64,7 @@ export default async function handler(req, res) {
           'Cache-Control': 'no-cache'
         },
         ...(httpsAgent && { httpsAgent }),
-        timeout: 30000, // Increased timeout for Vercel (30 seconds)
+        timeout: 15000, // Increased timeout for Vercel
         validateStatus: function (status) {
           return status >= 200 && status < 300; // default
         }
@@ -79,47 +79,31 @@ export default async function handler(req, res) {
     } catch (fetchError) {
       console.error('Error fetching initial page:', fetchError);
       
-      // Try multiple fallback approaches for Vercel
+      // Try fallback approach for Vercel
       if (process.env.NODE_ENV === 'production') {
-        console.log('Trying fallback approaches for Vercel...');
-        
-        // Fallback 1: Try with minimal headers
+        console.log('Trying fallback approach for Vercel...');
         try {
-          console.log('Fallback 1: Minimal headers...');
-          const fallback1Response = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+          // Try with different headers and no custom agent
+          const fallbackResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
-              'Accept': 'text/html'
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Accept-Encoding': 'gzip, deflate',
+              'Connection': 'keep-alive'
             },
-            timeout: 30000,
+            timeout: 20000,
             validateStatus: function (status) {
               return status >= 200 && status < 300;
             }
           });
           
-          initialResponse = fallback1Response;
-          initialHtml = fallback1Response.data;
-          console.log('Fallback 1 successful');
-        } catch (fallback1Error) {
-          console.error('Fallback 1 failed:', fallback1Error.message);
-          
-          // Fallback 2: Try with even more basic approach
-          try {
-            console.log('Fallback 2: Basic fetch...');
-            const fallback2Response = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
-              timeout: 30000,
-              validateStatus: function (status) {
-                return status >= 200 && status < 300;
-              }
-            });
-            
-            initialResponse = fallback2Response;
-            initialHtml = fallback2Response.data;
-            console.log('Fallback 2 successful');
-          } catch (fallback2Error) {
-            console.error('All fallback approaches failed');
-            throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${fetchError.message}`);
-          }
+          initialResponse = fallbackResponse;
+          initialHtml = fallbackResponse.data;
+          console.log('Fallback approach successful');
+        } catch (fallbackError) {
+          console.error('Fallback approach also failed:', fallbackError);
+          throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${fetchError.message}`);
         }
       } else {
         throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${fetchError.message}`);
@@ -184,7 +168,7 @@ export default async function handler(req, res) {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
         },
         ...(httpsAgent && { httpsAgent }),
-        timeout: 30000, // Increased timeout for Vercel (30 seconds)
+        timeout: 20000, // Increased timeout for Vercel
         validateStatus: function (status) {
           return status >= 200 && status < 300; // default
         }
