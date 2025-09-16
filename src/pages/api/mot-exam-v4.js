@@ -42,6 +42,10 @@ export default async function handler(req, res) {
     });
   }
 
+  // Detect environment variables at function level for proper scope
+  const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+  const isProduction = process.env.NODE_ENV === 'production';
+
   try {
     const { searchId } = req.body;
 
@@ -58,10 +62,6 @@ export default async function handler(req, res) {
 
     const axios = require('axios');
     const https = require('https');
-
-    // Detect Vercel environment
-    const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-    const isProduction = process.env.NODE_ENV === 'production';
 
     console.log('Environment detection:', {
       isVercel: !!isVercel,
