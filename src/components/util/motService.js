@@ -6,10 +6,10 @@ export const fetchTheoreticalExamResult = async (searchId) => {
     throw new Error('رقم الهوية مطلوب');
   }
 
-  console.log('Fetching from MOT website via server-side API...');
+  console.log('Fetching from MOT website via advanced proxy...');
 
   try {
-    const response = await fetch('/api/mot-exam', {
+    const response = await fetch('/api/mot-proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,25 +56,25 @@ export const fetchTheoreticalExamResult = async (searchId) => {
     }
 
     if (!response.ok) {
-      // Handle 503 Service Unavailable with fallback information
-      if (response.status === 503 && result.fallback) {
+      // Handle various error responses from the new proxy
+      if ((response.status === 503 || response.status === 408) && result.fallback) {
         const error = new Error(result.message || 'لا يمكن الوصول لموقع وزارة المواصلات');
         error.fallback = result.fallback;
-        error.status = 503;
+        error.status = response.status;
         throw error;
       }
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      throw new Error(result.message || result.error || `HTTP error! status: ${response.status}`);
     }
 
     if (!result.success) {
-      // Handle 503 Service Unavailable with fallback information
+      // Handle proxy errors with fallback information
       if (result.fallback) {
-        const error = new Error(result.message || 'لا يمكن الوصول لموقع وزارة المواصلات');
+        const error = new Error(result.message || result.error || 'لا يمكن الوصول لموقع وزارة المواصلات');
         error.fallback = result.fallback;
         error.status = 503;
         throw error;
       }
-      throw new Error(result.message || 'فشل في جلب النتائج');
+      throw new Error(result.message || result.error || 'فشل في جلب النتائج');
     }
 
     if (!result.found) {
