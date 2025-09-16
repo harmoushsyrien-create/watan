@@ -9,12 +9,6 @@
     "src/pages/api/mot-exam-v3.js": {
       "maxDuration": 60
     },
-    "src/pages/api/mot-exam-v4.js": {
-      "maxDuration": 60
-    },
-    "src/pages/api/debug-mot-response.js": {
-      "maxDuration": 60
-    },
     "src/pages/api/test-mot.js": {
       "maxDuration": 30
     },
@@ -28,9 +22,6 @@
       "maxDuration": 30
     },
     "src/pages/api/test-ssl-bypass.js": {
-      "maxDuration": 30
-    },
-    "src/pages/api/test-all-proxies.js": {
       "maxDuration": 30
     }
   },

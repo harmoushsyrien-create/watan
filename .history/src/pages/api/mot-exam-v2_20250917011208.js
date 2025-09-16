@@ -200,14 +200,6 @@ export default async function handler(req, res) {
         {
           name: 'ThingProxy',
           url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Anywhere',
-          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxyCORS',
-          url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
       ];
 
@@ -240,58 +232,7 @@ export default async function handler(req, res) {
       }
       
       if (!searchSuccess) {
-        console.log('All search proxy services failed, trying alternative approach...');
-        
-        // Try using a different approach for search
-        try {
-          console.log('Trying browser simulation approach for search...');
-          
-          // Use a more sophisticated proxy service for POST
-          const browserProxyUrl = 'https://api.scraperapi.com/free?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx');
-          
-          const browserSearchResponse = await axios.post(browserProxyUrl, formData.toString(), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-            },
-            timeout: 30000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-          
-          searchResponse = browserSearchResponse;
-          resultHtml = browserSearchResponse.data;
-          console.log('Browser simulation search successful');
-        } catch (browserError) {
-          console.error('Browser simulation search failed:', browserError.message);
-          
-          // Last resort: try direct connection with different headers
-          try {
-            console.log('Trying direct search with different headers...');
-            searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive'
-              },
-              timeout: 30000,
-              validateStatus: function (status) {
-                return status >= 200 && status < 300;
-              }
-            });
-            
-            resultHtml = searchResponse.data;
-            console.log('Direct search with different headers successful');
-          } catch (directError) {
-            console.error('All search attempts failed');
-            throw new Error(`فشل في البحث عن النتيجة: ${directError.message}`);
-          }
-        }
+        throw new Error('All search proxy services failed');
       }
     } else {
       // Development: try direct connection

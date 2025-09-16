@@ -12,9 +12,6 @@
     "src/pages/api/mot-exam-v4.js": {
       "maxDuration": 60
     },
-    "src/pages/api/debug-mot-response.js": {
-      "maxDuration": 60
-    },
     "src/pages/api/test-mot.js": {
       "maxDuration": 30
     },

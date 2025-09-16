@@ -3,7 +3,7 @@ export const fetchTheoreticalExamResult = async (searchId) => {
   try {
     console.log('Fetching from MOT website via server-side API...');
     
-    const response = await fetch('/api/mot-exam-v4', {
+    const response = await fetch('/api/mot-exam-v3', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
