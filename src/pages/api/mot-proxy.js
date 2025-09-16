@@ -52,9 +52,11 @@ export default async function handler(req, res) {
   try {
     const motUrl = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
 
-    // Multiple proxy strategies (optimized for production speed)
+    // Multiple proxy strategies (optimized for Vercel production)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+
     const proxyStrategies = [
-      // Strategy 1: Direct (works best on server-side, fails in browser due to CORS)
+      // Strategy 1: Direct (works best locally, try first always)
       {
         name: 'Direct',
         getUrl: (url) => url,
@@ -62,7 +64,7 @@ export default async function handler(req, res) {
           return await response.text();
         }
       },
-      // Strategy 2: Fast proxy with raw response
+      // Strategy 2: AllOrigins Raw (fastest proxy for production)
       {
         name: 'AllOriginsRaw',
         getUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -70,7 +72,15 @@ export default async function handler(req, res) {
           return await response.text();
         }
       },
-      // Strategy 3: AllOrigins (reliable but slower)
+      // Strategy 3: CORS.SH (reliable for production)
+      {
+        name: 'CorsAnywhere',
+        getUrl: (url) => `https://cors-anywhere.herokuapp.com/${url}`,
+        processResponse: async (response) => {
+          return await response.text();
+        }
+      },
+      // Strategy 4: AllOrigins (most reliable fallback)
       {
         name: 'AllOrigins',
         getUrl: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
@@ -94,9 +104,15 @@ export default async function handler(req, res) {
         const fetchOptions = {
           method: 'GET',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
           },
-          signal: AbortSignal.timeout(2500)
+          signal: AbortSignal.timeout(2000)
         };
 
         // Add agent for development to handle SSL issues
@@ -182,10 +198,15 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive'
           },
           body: formData,
-          signal: AbortSignal.timeout(2500)
+          signal: AbortSignal.timeout(2000)
         };
 
         if (strategy.name === 'Direct') {
@@ -211,6 +232,10 @@ export default async function handler(req, res) {
           // AllOriginsRaw - faster, simpler approach
           searchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`;
           // Keep the form data as body for POST
+        } else if (strategy.name === 'CorsAnywhere') {
+          // CorsAnywhere - reliable proxy service
+          searchUrl = `https://cors-anywhere.herokuapp.com/${motUrl}`;
+          // Keep the form data as body for POST
         } else if (strategy.name === 'AllOrigins') {
           // AllOrigins requires special handling for POST requests
           searchUrl = 'https://api.allorigins.win/get';
@@ -229,7 +254,7 @@ export default async function handler(req, res) {
               },
               body: formData.toString()
             }),
-            signal: AbortSignal.timeout(2500)
+            signal: AbortSignal.timeout(2000)
           };
         } else {
           searchUrl = strategy.getUrl(motUrl);
