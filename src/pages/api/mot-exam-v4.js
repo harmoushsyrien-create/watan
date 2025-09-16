@@ -172,27 +172,27 @@ export default async function handler(req, res) {
     const connectionMethods = [];
 
     if (isVercel) {
-      console.log('Vercel environment detected - using mixed strategy (direct + working proxies)');
-      // Based on timeout errors, direct connections to MOT are being blocked
-      // Let's use working proxy services first, then direct as fallback
+      console.log('Vercel environment detected - using custom Render proxy');
+      // Use our own deployed Render proxy first (most reliable)
       connectionMethods.push(
-        // Working proxy services first (bypass geographic restrictions)
+        // Our custom Render proxy (primary)
+        {
+          name: 'Custom Render Proxy',
+          method: 'proxy',
+          url: 'https://cors-jquj.onrender.com/proxy/mot_Ser/Exam.aspx'
+        },
+        // Backup proxy services
         {
           name: 'AllOrigins Proxy',
           method: 'proxy',
           url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
         },
         {
-          name: 'CORS Anywhere',
-          method: 'proxy',
-          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
           name: 'ThingProxy',
           method: 'proxy',
           url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
-        // Direct connections as fallback (in case proxy restrictions change)
+        // Direct connections as last resort
         {
           name: 'HTTP Direct',
           method: 'http',
@@ -343,25 +343,26 @@ export default async function handler(req, res) {
     const searchMethods = [];
 
     if (isVercel) {
-      console.log('Using Vercel mixed strategy for search (proxy + direct)');
+      console.log('Using custom Render proxy for search');
       searchMethods.push(
-        // Working proxy services first for search (bypass restrictions)
+        // Our custom Render proxy for search (primary)
+        {
+          name: 'Custom Render Proxy Search',
+          method: 'proxy',
+          url: 'https://cors-jquj.onrender.com/proxy/mot_Ser/Exam.aspx'
+        },
+        // Backup proxy services for search
         {
           name: 'AllOrigins Search',
           method: 'proxy',
           url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
         },
         {
-          name: 'CORS Anywhere Search',
-          method: 'proxy',
-          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
           name: 'ThingProxy Search',
           method: 'proxy',
           url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
-        // Direct connections as fallback
+        // Direct connections as last resort
         {
           name: 'HTTP Search',
           method: 'http',
