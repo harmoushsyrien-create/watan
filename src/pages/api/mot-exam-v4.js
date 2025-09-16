@@ -1,7 +1,45 @@
-// MOT Exam API with comprehensive proxy fallbacks
+// MOT Exam API with robust connection handling for Vercel
+// Simple rate limiting store (in production, use Redis or external store)
+const rateLimitStore = new Map();
+
+// Rate limiting helper
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  const maxRequests = 10; // 10 requests per minute
+
+  if (!rateLimitStore.has(ip)) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+
+  const data = rateLimitStore.get(ip);
+  if (now > data.resetTime) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+
+  if (data.count >= maxRequests) {
+    return false;
+  }
+
+  data.count++;
+  rateLimitStore.set(ip, data);
+  return true;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Rate limiting
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({
+      success: false,
+      message: 'تم تجاوز حد الطلبات المسموح. يرجى المحاولة بعد دقيقة.'
+    });
   }
 
   try {
@@ -22,122 +60,179 @@ export default async function handler(req, res) {
     const https = require('https');
 
     // Create HTTPS agent that bypasses SSL verification
-    const httpsAgent = new https.Agent({ 
+    const httpsAgent = new https.Agent({
       rejectUnauthorized: false,
       secureProtocol: 'TLSv1_2_method'
     });
 
-    // Step 1: Try to fetch initial page with comprehensive fallbacks
+    // Alternative HTTPS agent for fallback
+    const altHttpsAgent = new https.Agent({
+      rejectUnauthorized: false,
+      secureProtocol: 'TLSv1_method',
+      ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
+    });
+
+    // Helper function to validate MOT HTML content
+    function isValidMOTContent(html) {
+      if (!html || typeof html !== 'string') return false;
+
+      // Check for MOT-specific indicators
+      const motIndicators = [
+        'وزارة المواصلات',
+        '__VIEWSTATE',
+        '__EVENTVALIDATION',
+        'Exam.aspx',
+        'btnSearch',
+        'TextBox1'
+      ];
+
+      let foundIndicators = 0;
+      for (const indicator of motIndicators) {
+        if (html.includes(indicator)) {
+          foundIndicators++;
+        }
+      }
+
+      // At least 3 indicators should be present for valid content
+      return foundIndicators >= 3;
+    }
+
+    // Step 1: Try to fetch initial page with robust fallbacks
     console.log('Fetching fresh form tokens from MOT website...');
     let initialResponse, initialHtml;
-    
-    // In production (Vercel), prioritize working proxy services
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    if (isProduction) {
-      console.log('Production environment detected - using proxy services first');
-      
-      // Try working proxy services first (based on test results)
-      const proxyServices = [
-        {
-          name: 'Hide.me Free Web Proxy',
-          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+
+    // Try direct connection with SSL bypass first (most reliable)
+    try {
+      console.log('Attempting direct connection with SSL bypass...');
+      initialResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
         },
-        {
-          name: 'AllOrigins',
-          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'ThingProxy',
-          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Anywhere',
-          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxyCORS',
-          url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Proxy',
-          url: 'https://corsproxy.io/?https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxySite.com',
-          url: 'https://www.proxysite.com/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CroxyProxy',
-          url: 'https://www.croxyproxy.com/_p/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'GratisProxy',
-          url: 'https://proxygratis.id/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CoProxy',
-          url: 'https://coproxy.com/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+        httpsAgent,
+        timeout: 25000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 300;
         }
-      ];
-      
-      let proxySuccess = false;
-      for (const proxy of proxyServices) {
-        try {
-          console.log(`Trying ${proxy.name}...`);
-          initialResponse = await axios.get(proxy.url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-              'Upgrade-Insecure-Requests': '1'
-            },
-            timeout: 20000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-          
-          initialHtml = initialResponse.data;
-          console.log(`${proxy.name} successful`);
-          proxySuccess = true;
-          break;
-        } catch (proxyError) {
-          console.error(`${proxy.name} failed:`, proxyError.message);
-          continue;
-        }
+      });
+
+      initialHtml = initialResponse.data;
+
+      if (isValidMOTContent(initialHtml)) {
+        console.log('Direct connection with SSL bypass successful');
+      } else {
+        throw new Error('Invalid content received from direct connection');
       }
-      
-      if (!proxySuccess) {
-        throw new Error('All proxy services failed in production');
-      }
-    } else {
-      // In development, try direct connection first
+    } catch (fetchError) {
+      console.error('Direct connection failed:', fetchError.message);
+
+      // Try alternative SSL approach
       try {
-        console.log('Development environment - attempting direct connection with SSL bypass...');
+        console.log('Trying alternative SSL approach...');
         initialResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive'
           },
-          httpsAgent,
-          timeout: 30000,
+          httpsAgent: altHttpsAgent,
+          timeout: 25000,
           validateStatus: function (status) {
             return status >= 200 && status < 300;
           }
         });
-        
+
         initialHtml = initialResponse.data;
-        console.log('Direct connection with SSL bypass successful');
-      } catch (fetchError) {
-        console.error('Direct connection failed:', fetchError.message);
-        throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${fetchError.message}`);
+
+        if (isValidMOTContent(initialHtml)) {
+          console.log('Alternative SSL approach successful');
+        } else {
+          throw new Error('Invalid content received from alternative SSL');
+        }
+      } catch (altError) {
+        console.error('Alternative SSL approach failed:', altError.message);
+
+        // Try HTTP instead of HTTPS
+        try {
+          console.log('Trying HTTP instead of HTTPS...');
+          initialResponse = await axios.get('http://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+              'Cache-Control': 'no-cache'
+            },
+            timeout: 25000,
+            validateStatus: function (status) {
+              return status >= 200 && status < 300;
+            }
+          });
+
+          initialHtml = initialResponse.data;
+
+          if (isValidMOTContent(initialHtml)) {
+            console.log('HTTP connection successful');
+          } else {
+            throw new Error('Invalid content received from HTTP connection');
+          }
+        } catch (httpError) {
+          console.error('HTTP connection failed:', httpError.message);
+
+          // Last resort: try selected reliable proxy services
+          console.log('Trying reliable proxy services as last resort...');
+          const reliableProxies = [
+            {
+              name: 'AllOrigins',
+              url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+            },
+            {
+              name: 'ThingProxy',
+              url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+            }
+          ];
+
+          let proxySuccess = false;
+          for (const proxy of reliableProxies) {
+            try {
+              console.log(`Trying ${proxy.name}...`);
+              initialResponse = await axios.get(proxy.url, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                  'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
+                },
+                timeout: 20000,
+                validateStatus: function (status) {
+                  return status >= 200 && status < 300;
+                }
+              });
+
+              initialHtml = initialResponse.data;
+
+              if (isValidMOTContent(initialHtml)) {
+                console.log(`${proxy.name} successful with valid content`);
+                proxySuccess = true;
+                break;
+              } else {
+                console.log(`${proxy.name} returned invalid content`);
+                continue;
+              }
+            } catch (proxyError) {
+              console.error(`${proxy.name} failed:`, proxyError.message);
+              continue;
+            }
+          }
+
+          if (!proxySuccess) {
+            throw new Error('All connection methods failed');
+          }
+        }
       }
     }
 
@@ -148,7 +243,20 @@ export default async function handler(req, res) {
 
     if (!viewStateMatch || !viewStateGeneratorMatch || !eventValidationMatch) {
       console.error('Failed to extract form tokens');
-      console.log('HTML preview:', initialHtml.substring(0, 1000));
+      console.log('HTML length:', initialHtml ? initialHtml.length : 'null');
+      console.log('HTML preview (first 1000 chars):', initialHtml ? initialHtml.substring(0, 1000) : 'null');
+      console.log('HTML preview (last 500 chars):', initialHtml ? initialHtml.substring(Math.max(0, initialHtml.length - 500)) : 'null');
+
+      // Check what we actually got
+      const hasViewState = initialHtml && initialHtml.includes('__VIEWSTATE');
+      const hasEventValidation = initialHtml && initialHtml.includes('__EVENTVALIDATION');
+      const hasViewStateGenerator = initialHtml && initialHtml.includes('__VIEWSTATEGENERATOR');
+
+      console.log('Token presence check:');
+      console.log('- __VIEWSTATE found:', hasViewState);
+      console.log('- __EVENTVALIDATION found:', hasEventValidation);
+      console.log('- __VIEWSTATEGENERATOR found:', hasViewStateGenerator);
+
       throw new Error('فشل في استخراج بيانات النموذج من موقع وزارة المواصلات');
     }
 
@@ -168,115 +276,80 @@ export default async function handler(req, res) {
 
     console.log(`Searching for ID: ${searchId}`);
 
-    // Step 4: Submit search request with environment-based approach
+    // Step 4: Submit search request with robust fallbacks
     let searchResponse, resultHtml;
-    
-    if (isProduction) {
-      console.log('Production environment - using proxy services for search...');
-      
-      const searchProxyServices = [
-        {
-          name: 'Hide.me Free Web Proxy',
-          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'AllOrigins',
-          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'ThingProxy',
-          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Anywhere',
-          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxyCORS',
-          url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Proxy',
-          url: 'https://corsproxy.io/?https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxySite.com',
-          url: 'https://www.proxysite.com/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CroxyProxy',
-          url: 'https://www.croxyproxy.com/_p/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'GratisProxy',
-          url: 'https://proxygratis.id/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CoProxy',
-          url: 'https://coproxy.com/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        }
-      ];
 
-      let searchSuccess = false;
-      
-      for (const proxy of searchProxyServices) {
-        try {
-          console.log(`Trying ${proxy.name} for search...`);
-          
-          const proxySearchResponse = await axios.post(proxy.url, formData.toString(), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Origin': 'https://www.mot.gov.ps',
-              'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Connection': 'keep-alive'
-            },
-            timeout: 20000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-          
-          searchResponse = proxySearchResponse;
-          resultHtml = proxySearchResponse.data;
-          console.log(`${proxy.name} search successful`);
-          searchSuccess = true;
-          break;
-        } catch (proxyError) {
-          console.error(`${proxy.name} search failed:`, proxyError.message);
-          continue;
+    // Try direct connection with SSL bypass first (most reliable)
+    try {
+      console.log('Attempting search with SSL bypass...');
+      searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://www.mot.gov.ps',
+          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Connection': 'keep-alive'
+        },
+        httpsAgent,
+        timeout: 25000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 300;
         }
-      }
-      
-      if (!searchSuccess) {
-        throw new Error('All proxy services failed for search in production');
-      }
-    } else {
-      // In development, try direct connection first
+      });
+
+      resultHtml = searchResponse.data;
+      console.log('Search with SSL bypass successful');
+    } catch (searchError) {
+      console.error('Search with SSL bypass failed:', searchError.message);
+
+      // Try alternative search approaches
       try {
-        console.log('Development environment - attempting search with SSL bypass...');
+        console.log('Trying alternative search approach...');
         searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://www.mot.gov.ps',
-            'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive'
           },
-          httpsAgent,
-          timeout: 30000,
+          httpsAgent: altHttpsAgent,
+          timeout: 25000,
           validateStatus: function (status) {
             return status >= 200 && status < 300;
           }
         });
-        
+
         resultHtml = searchResponse.data;
-        console.log('Search with SSL bypass successful');
-      } catch (searchError) {
-        console.error('Search with SSL bypass failed:', searchError.message);
-        throw new Error(`فشل في البحث عن النتيجة: ${searchError.message}`);
+        console.log('Alternative search approach successful');
+      } catch (altSearchError) {
+        console.error('Alternative search approach failed:', altSearchError.message);
+
+        // Try HTTP instead of HTTPS for search
+        try {
+          console.log('Trying HTTP search...');
+          searchResponse = await axios.post('http://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Origin': 'http://www.mot.gov.ps',
+              'Referer': 'http://www.mot.gov.ps/mot_Ser/Exam.aspx',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            },
+            timeout: 25000,
+            validateStatus: function (status) {
+              return status >= 200 && status < 300;
+            }
+          });
+
+          resultHtml = searchResponse.data;
+          console.log('HTTP search successful');
+        } catch (httpSearchError) {
+          console.error('HTTP search failed:', httpSearchError.message);
+          throw new Error(`فشل في البحث عن النتيجة: ${httpSearchError.message}`);
+        }
       }
     }
 
