@@ -59,17 +59,38 @@ export default async function handler(req, res) {
     const axios = require('axios');
     const https = require('https');
 
+    // Detect Vercel environment
+    const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    console.log('Environment detection:', {
+      isVercel: !!isVercel,
+      isProduction,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV
+    });
+
     // Create HTTPS agent that bypasses SSL verification
     const httpsAgent = new https.Agent({
       rejectUnauthorized: false,
-      secureProtocol: 'TLSv1_2_method'
+      secureProtocol: 'TLSv1_2_method',
+      timeout: 20000
     });
 
     // Alternative HTTPS agent for fallback
     const altHttpsAgent = new https.Agent({
       rejectUnauthorized: false,
       secureProtocol: 'TLSv1_method',
-      ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
+      ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH',
+      timeout: 20000
+    });
+
+    // Vercel-optimized HTTPS agent
+    const vercelHttpsAgent = new https.Agent({
+      rejectUnauthorized: false,
+      keepAlive: false,
+      timeout: 15000,
+      family: 4 // Force IPv4
     });
 
     // Helper function to validate MOT HTML content
@@ -97,143 +118,153 @@ export default async function handler(req, res) {
       return foundIndicators >= 3;
     }
 
+    // Helper function for retry with exponential backoff
+    async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await fn();
+        } catch (error) {
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          const delay = baseDelay * Math.pow(2, attempt - 1);
+          console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
     // Step 1: Try to fetch initial page with robust fallbacks
     console.log('Fetching fresh form tokens from MOT website...');
     let initialResponse, initialHtml;
 
-    // Try direct connection with SSL bypass first (most reliable)
-    try {
-      console.log('Attempting direct connection with SSL bypass...');
-      initialResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
+    // Choose connection strategy based on environment
+    const connectionMethods = [];
+
+    if (isVercel) {
+      console.log('Vercel environment detected - using Vercel-optimized strategy');
+      // On Vercel, prioritize proxy services and HTTP connections
+      connectionMethods.push(
+        // Hide.me proxy first (user confirmed it works well)
+        {
+          name: 'Hide.me Proxy',
+          method: 'proxy',
+          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
         },
-        httpsAgent,
-        timeout: 25000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 300;
+        // Other reliable proxy services
+        {
+          name: 'AllOrigins Proxy',
+          method: 'proxy',
+          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+        },
+        {
+          name: 'ThingProxy',
+          method: 'proxy',
+          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        // HTTP connection (often works better on Vercel)
+        {
+          name: 'HTTP Direct',
+          method: 'http',
+          url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        // Vercel-optimized HTTPS
+        {
+          name: 'Vercel HTTPS',
+          method: 'vercel-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
-      });
+      );
+    } else {
+      console.log('Local/Development environment - using direct connection strategy');
+      // On local development, prioritize direct connections
+      connectionMethods.push(
+        {
+          name: 'Direct HTTPS',
+          method: 'https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Alternative HTTPS',
+          method: 'alt-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'HTTP Direct',
+          method: 'http',
+          url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        }
+      );
+    }
 
-      initialHtml = initialResponse.data;
+    let connectionSuccess = false;
+    let lastError = null;
 
-      if (isValidMOTContent(initialHtml)) {
-        console.log('Direct connection with SSL bypass successful');
-      } else {
-        throw new Error('Invalid content received from direct connection');
-      }
-    } catch (fetchError) {
-      console.error('Direct connection failed:', fetchError.message);
-
-      // Try alternative SSL approach
+    for (const connection of connectionMethods) {
       try {
-        console.log('Trying alternative SSL approach...');
-        initialResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+        console.log(`Trying ${connection.name}...`);
+
+        let requestConfig = {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+            'Cache-Control': 'no-cache'
           },
-          httpsAgent: altHttpsAgent,
-          timeout: 25000,
+          timeout: isVercel ? 20000 : 25000,
           validateStatus: function (status) {
             return status >= 200 && status < 300;
           }
-        });
+        };
 
+        // Configure agent based on connection method
+        switch (connection.method) {
+          case 'https':
+            requestConfig.httpsAgent = httpsAgent;
+            requestConfig.headers['Connection'] = 'keep-alive';
+            requestConfig.headers['Upgrade-Insecure-Requests'] = '1';
+            break;
+          case 'alt-https':
+            requestConfig.httpsAgent = altHttpsAgent;
+            requestConfig.headers['User-Agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+            requestConfig.headers['Accept-Encoding'] = 'gzip, deflate';
+            break;
+          case 'vercel-https':
+            requestConfig.httpsAgent = vercelHttpsAgent;
+            requestConfig.headers['Connection'] = 'close';
+            break;
+          case 'proxy':
+            // Proxy requests don't need HTTPS agents
+            requestConfig.timeout = 18000;
+            break;
+          case 'http':
+            // HTTP requests don't need HTTPS agents
+            break;
+        }
+
+        initialResponse = await axios.get(connection.url, requestConfig);
         initialHtml = initialResponse.data;
 
         if (isValidMOTContent(initialHtml)) {
-          console.log('Alternative SSL approach successful');
+          console.log(`${connection.name} successful with valid content`);
+          connectionSuccess = true;
+          break;
         } else {
-          throw new Error('Invalid content received from alternative SSL');
+          console.log(`${connection.name} returned invalid content, trying next method...`);
+          lastError = new Error(`Invalid content from ${connection.name}`);
+          continue;
         }
-      } catch (altError) {
-        console.error('Alternative SSL approach failed:', altError.message);
-
-        // Try HTTP instead of HTTPS
-        try {
-          console.log('Trying HTTP instead of HTTPS...');
-          initialResponse = await axios.get('http://www.mot.gov.ps/mot_Ser/Exam.aspx', {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-              'Cache-Control': 'no-cache'
-            },
-            timeout: 25000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-
-          initialHtml = initialResponse.data;
-
-          if (isValidMOTContent(initialHtml)) {
-            console.log('HTTP connection successful');
-          } else {
-            throw new Error('Invalid content received from HTTP connection');
-          }
-        } catch (httpError) {
-          console.error('HTTP connection failed:', httpError.message);
-
-          // Last resort: try selected reliable proxy services
-          console.log('Trying reliable proxy services as last resort...');
-          const reliableProxies = [
-            {
-              name: 'AllOrigins',
-              url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-            },
-            {
-              name: 'ThingProxy',
-              url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-            }
-          ];
-
-          let proxySuccess = false;
-          for (const proxy of reliableProxies) {
-            try {
-              console.log(`Trying ${proxy.name}...`);
-              initialResponse = await axios.get(proxy.url, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                  'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
-                },
-                timeout: 20000,
-                validateStatus: function (status) {
-                  return status >= 200 && status < 300;
-                }
-              });
-
-              initialHtml = initialResponse.data;
-
-              if (isValidMOTContent(initialHtml)) {
-                console.log(`${proxy.name} successful with valid content`);
-                proxySuccess = true;
-                break;
-              } else {
-                console.log(`${proxy.name} returned invalid content`);
-                continue;
-              }
-            } catch (proxyError) {
-              console.error(`${proxy.name} failed:`, proxyError.message);
-              continue;
-            }
-          }
-
-          if (!proxySuccess) {
-            throw new Error('All connection methods failed');
-          }
-        }
+      } catch (error) {
+        console.error(`${connection.name} failed:`, error.message);
+        lastError = error;
+        continue;
       }
+    }
+
+    if (!connectionSuccess) {
+      console.error('All connection methods failed. Last error:', lastError?.message);
+      throw new Error(`All connection methods failed. Last error: ${lastError?.message || 'Unknown error'}`);
     }
 
     // Step 2: Extract fresh form tokens using regex
@@ -276,81 +307,123 @@ export default async function handler(req, res) {
 
     console.log(`Searching for ID: ${searchId}`);
 
-    // Step 4: Submit search request with robust fallbacks
+    // Step 4: Submit search request with environment-aware strategy
     let searchResponse, resultHtml;
 
-    // Try direct connection with SSL bypass first (most reliable)
-    try {
-      console.log('Attempting search with SSL bypass...');
-      searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://www.mot.gov.ps',
-          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Connection': 'keep-alive'
+    // Choose search strategy based on environment (use same method that worked for initial fetch)
+    const searchMethods = [];
+
+    if (isVercel) {
+      console.log('Using Vercel-optimized search strategy');
+      searchMethods.push(
+        // Hide.me proxy for search (user confirmed works well)
+        {
+          name: 'Hide.me Proxy Search',
+          method: 'proxy',
+          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
         },
-        httpsAgent,
-        timeout: 25000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 300;
+        // Other reliable proxies for search
+        {
+          name: 'AllOrigins Search',
+          method: 'proxy',
+          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+        },
+        {
+          name: 'HTTP Search',
+          method: 'http',
+          url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Vercel HTTPS Search',
+          method: 'vercel-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
-      });
+      );
+    } else {
+      searchMethods.push(
+        {
+          name: 'Direct HTTPS Search',
+          method: 'https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Alternative HTTPS Search',
+          method: 'alt-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'HTTP Search',
+          method: 'http',
+          url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        }
+      );
+    }
 
-      resultHtml = searchResponse.data;
-      console.log('Search with SSL bypass successful');
-    } catch (searchError) {
-      console.error('Search with SSL bypass failed:', searchError.message);
+    let searchSuccess = false;
+    let lastSearchError = null;
 
-      // Try alternative search approaches
+    for (const searchMethod of searchMethods) {
       try {
-        console.log('Trying alternative search approach...');
-        searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+        console.log(`Attempting ${searchMethod.name}...`);
+
+        let searchConfig = {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
           },
-          httpsAgent: altHttpsAgent,
-          timeout: 25000,
+          timeout: isVercel ? 20000 : 25000,
           validateStatus: function (status) {
             return status >= 200 && status < 300;
           }
-        });
+        };
 
-        resultHtml = searchResponse.data;
-        console.log('Alternative search approach successful');
-      } catch (altSearchError) {
-        console.error('Alternative search approach failed:', altSearchError.message);
-
-        // Try HTTP instead of HTTPS for search
-        try {
-          console.log('Trying HTTP search...');
-          searchResponse = await axios.post('http://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Origin': 'http://www.mot.gov.ps',
-              'Referer': 'http://www.mot.gov.ps/mot_Ser/Exam.aspx',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-            },
-            timeout: 25000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-
-          resultHtml = searchResponse.data;
-          console.log('HTTP search successful');
-        } catch (httpSearchError) {
-          console.error('HTTP search failed:', httpSearchError.message);
-          throw new Error(`فشل في البحث عن النتيجة: ${httpSearchError.message}`);
+        // Configure search request based on method
+        switch (searchMethod.method) {
+          case 'https':
+            searchConfig.httpsAgent = httpsAgent;
+            searchConfig.headers['Origin'] = 'https://www.mot.gov.ps';
+            searchConfig.headers['Referer'] = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
+            searchConfig.headers['Connection'] = 'keep-alive';
+            break;
+          case 'alt-https':
+            searchConfig.httpsAgent = altHttpsAgent;
+            searchConfig.headers['User-Agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+            searchConfig.headers['Accept-Language'] = 'en-US,en;q=0.5';
+            searchConfig.headers['Accept-Encoding'] = 'gzip, deflate';
+            break;
+          case 'vercel-https':
+            searchConfig.httpsAgent = vercelHttpsAgent;
+            searchConfig.headers['Connection'] = 'close';
+            searchConfig.headers['Origin'] = 'https://www.mot.gov.ps';
+            searchConfig.headers['Referer'] = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
+            break;
+          case 'proxy':
+            // Proxy requests use their own handling
+            searchConfig.timeout = 18000;
+            break;
+          case 'http':
+            searchConfig.headers['Origin'] = 'http://www.mot.gov.ps';
+            searchConfig.headers['Referer'] = 'http://www.mot.gov.ps/mot_Ser/Exam.aspx';
+            break;
         }
+
+        searchResponse = await axios.post(searchMethod.url, formData.toString(), searchConfig);
+        resultHtml = searchResponse.data;
+
+        console.log(`${searchMethod.name} successful`);
+        searchSuccess = true;
+        break;
+      } catch (error) {
+        console.error(`${searchMethod.name} failed:`, error.message);
+        lastSearchError = error;
+        continue;
       }
+    }
+
+    if (!searchSuccess) {
+      console.error('All search methods failed. Last error:', lastSearchError?.message);
+      throw new Error(`فشل في البحث عن النتيجة: ${lastSearchError?.message || 'جميع طرق الاتصال فشلت'}`);
     }
 
     // Step 5: Parse results using enhanced parsing
@@ -568,9 +641,45 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('MOT API v4 Error:', error);
+
+    // Enhanced error logging for production debugging
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      config: error.config ? {
+        url: error.config.url,
+        method: error.config.method,
+        timeout: error.config.timeout,
+        headers: error.config.headers
+      } : null,
+      response: error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers,
+        dataLength: error.response.data ? error.response.data.length : 0
+      } : null,
+      request: error.request ? {
+        method: error.request.method,
+        url: error.request.url,
+        timeout: error.request.timeout
+      } : null,
+      isVercel: !!isVercel,
+      nodeEnv: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
+
     return res.status(500).json({
       success: false,
-      message: 'حدث خطأ أثناء جلب البيانات من موقع وزارة المواصلات. يرجى المحاولة لاحقاً.'
+      message: 'حدث خطأ أثناء جلب البيانات من موقع وزارة المواصلات. يرجى المحاولة لاحقاً.',
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: {
+          error: error.message,
+          isVercel: !!isVercel,
+          timestamp: new Date().toISOString()
+        }
+      })
     });
   }
 }
