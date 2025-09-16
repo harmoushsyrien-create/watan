@@ -208,37 +208,8 @@ export default async function handler(req, res) {
       resultHtml = searchResponse.data;
       console.log('Search response received');
     } catch (searchError) {
-      console.error('Direct search failed:', searchError.message);
-      
-      // Try proxy service for search request in Vercel
-      if (process.env.NODE_ENV === 'production') {
-        console.log('Trying proxy service for search request...');
-        
-        try {
-          // Use proxy service for POST request
-          const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx');
-          
-          const proxySearchResponse = await axios.post(proxyUrl, formData.toString(), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            timeout: 30000,
-            validateStatus: function (status) {
-              return status >= 200 && status < 300;
-            }
-          });
-          
-          searchResponse = proxySearchResponse;
-          resultHtml = proxySearchResponse.data;
-          console.log('Proxy search successful');
-        } catch (proxySearchError) {
-          console.error('Proxy search failed:', proxySearchError.message);
-          throw new Error(`فشل في البحث عن النتيجة: ${searchError.message}`);
-        }
-      } else {
-        throw new Error(`فشل في البحث عن النتيجة: ${searchError.message}`);
-      }
+      console.error('Error during search:', searchError);
+      throw new Error(`فشل في البحث عن النتيجة: ${searchError.message}`);
     }
 
     // Step 5: Parse results using regex
