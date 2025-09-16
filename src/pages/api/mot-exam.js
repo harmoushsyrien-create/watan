@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Set timeout for Vercel (max 7 seconds to avoid 504)
+  // Set timeout for Vercel (max 9 seconds to avoid 504)
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       res.status(408).json({
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         }
       });
     }
-  }, 7000);
+  }, 9000);
 
   try {
     if (req.method !== 'POST') {
@@ -53,9 +53,9 @@ export default async function handler(req, res) {
     let initialResponse;
     let motUrl = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
     
-    // Try multiple approaches to access the MOT website (optimized for Vercel)
+    // Optimized approach for Vercel - try direct first, then quick fallback
     const approaches = [
-      // Direct approach first (works in development, might work in production)
+      // Direct approach (works best on server-side)
       {
         url: motUrl,
         headers: {
@@ -63,29 +63,15 @@ export default async function handler(req, res) {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive'
-        }
-      },
-      // CORS proxy approach (backup for production)
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      },
-      // Third option - Try different proxy service
-      {
-        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'X-Requested-With': 'XMLHttpRequest'
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
         }
       }
     ];
 
     let lastError;
     let attempts = 0;
-    const maxAttempts = 2; // Try 2 approaches for better reliability
+    const maxAttempts = 1; // Try 1 approach to stay within Vercel timeout
     
     for (const approach of approaches) {
       if (attempts >= maxAttempts) break;
@@ -169,7 +155,7 @@ export default async function handler(req, res) {
     console.log(`Searching for ID: ${searchId}`);
 
     const searchApproaches = [
-      // Direct approach first (works in development, might work in production)
+      // Direct approach (optimized for server-side execution)
       {
         url: motUrl,
         headers: {
@@ -178,24 +164,8 @@ export default async function handler(req, res) {
           'Origin': 'https://www.mot.gov.ps',
           'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
-        }
-      },
-      // CORS proxy approach (backup for production)
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      },
-      // Third option - Try different proxy service
-      {
-        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Requested-With': 'XMLHttpRequest'
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Cache-Control': 'no-cache'
         }
       }
     ];
@@ -203,7 +173,7 @@ export default async function handler(req, res) {
     let searchResponse;
     let searchLastError;
     let searchAttempts = 0;
-    const maxSearchAttempts = 2; // Try 2 approaches for better reliability
+    const maxSearchAttempts = 1; // Try 1 approach to stay within Vercel timeout
     
     for (const approach of searchApproaches) {
       if (searchAttempts >= maxSearchAttempts) break;

@@ -5,7 +5,7 @@
   ],
   "functions": {
     "src/pages/api/mot-exam.js": {
-      "maxDuration": 7
+      "maxDuration": 10
     },
     "src/pages/api/test.js": {
       "maxDuration": 5

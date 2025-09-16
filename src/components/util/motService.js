@@ -33,17 +33,22 @@ export const fetchTheoreticalExamResult = async (searchId) => {
         throw new Error('حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.');
       }
     }
-    
+
+    // Check for Vercel timeout error (HTML response instead of JSON)
+    if (responseText.includes('FUNCTION_INVOCATION_TIMEOUT') || responseText.includes('An error occurred with your deployment')) {
+      throw new Error('انتهت مهلة الطلب. يرجى المحاولة لاحقاً أو زيارة موقع وزارة المواصلات مباشرة.');
+    }
+
     // Then try to parse as JSON
     try {
       result = JSON.parse(responseText);
     } catch (jsonError) {
       console.error('JSON parsing error:', jsonError);
       console.error('Response text:', responseText.substring(0, 200));
-      
-      if (response.status === 504) {
+
+      if (response.status === 504 || responseText.includes('504') || responseText.includes('timeout')) {
         throw new Error('انتهت مهلة الطلب. يرجى المحاولة لاحقاً أو زيارة موقع وزارة المواصلات مباشرة.');
-      } else if (response.status >= 500) {
+      } else if (response.status >= 500 || responseText.includes('error occurred')) {
         throw new Error('خطأ في الخادم. يرجى المحاولة لاحقاً أو زيارة موقع وزارة المواصلات مباشرة.');
       } else {
         throw new Error('حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.');
