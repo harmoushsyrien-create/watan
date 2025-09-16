@@ -8,7 +8,7 @@
       "maxDuration": 10
     },
     "src/pages/api/mot-proxy.js": {
-      "maxDuration": 10
+      "maxDuration": 8
     },
     "src/pages/api/test.js": {
       "maxDuration": 5

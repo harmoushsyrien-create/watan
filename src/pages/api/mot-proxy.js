@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // Set timeout to avoid Vercel limits
+  // Set timeout to avoid Vercel limits (reduced for faster response)
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       res.status(408).json({
@@ -47,12 +47,12 @@ export default async function handler(req, res) {
         }
       });
     }
-  }, 9000);
+  }, 8000);
 
   try {
     const motUrl = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
 
-    // Multiple proxy strategies (in order of reliability)
+    // Multiple proxy strategies (optimized for production speed)
     const proxyStrategies = [
       // Strategy 1: Direct (works best on server-side, fails in browser due to CORS)
       {
@@ -62,29 +62,21 @@ export default async function handler(req, res) {
           return await response.text();
         }
       },
-      // Strategy 2: AllOrigins (most reliable proxy)
+      // Strategy 2: Fast proxy with raw response
+      {
+        name: 'AllOriginsRaw',
+        getUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        processResponse: async (response) => {
+          return await response.text();
+        }
+      },
+      // Strategy 3: AllOrigins (reliable but slower)
       {
         name: 'AllOrigins',
         getUrl: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
         processResponse: async (response) => {
           const data = await response.json();
           return data.contents;
-        }
-      },
-      // Strategy 3: CORS Proxy IO
-      {
-        name: 'CorsProxy',
-        getUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        processResponse: async (response) => {
-          return await response.text();
-        }
-      },
-      // Strategy 4: ThingProxy
-      {
-        name: 'ThingProxy',
-        getUrl: (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
-        processResponse: async (response) => {
-          return await response.text();
         }
       }
     ];
@@ -104,7 +96,7 @@ export default async function handler(req, res) {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           },
-          signal: AbortSignal.timeout(4000)
+          signal: AbortSignal.timeout(2500)
         };
 
         // Add agent for development to handle SSL issues
@@ -135,10 +127,10 @@ export default async function handler(req, res) {
       return res.status(503).json({
         success: false,
         error: 'proxy_failed',
-        message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً',
+        message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يرجى زيارة الموقع مباشرة للبحث عن النتيجة.',
         fallback: {
           directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة'
+          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة'
         },
         debug: process.env.NODE_ENV === 'development' ? lastError?.message : undefined
       });
@@ -193,7 +185,7 @@ export default async function handler(req, res) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           },
           body: formData,
-          signal: AbortSignal.timeout(4000)
+          signal: AbortSignal.timeout(2500)
         };
 
         if (strategy.name === 'Direct') {
@@ -215,6 +207,10 @@ export default async function handler(req, res) {
             });
             searchOptions.agent = agent;
           }
+        } else if (strategy.name === 'AllOriginsRaw') {
+          // AllOriginsRaw - faster, simpler approach
+          searchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`;
+          // Keep the form data as body for POST
         } else if (strategy.name === 'AllOrigins') {
           // AllOrigins requires special handling for POST requests
           searchUrl = 'https://api.allorigins.win/get';
@@ -233,7 +229,7 @@ export default async function handler(req, res) {
               },
               body: formData.toString()
             }),
-            signal: AbortSignal.timeout(4000)
+            signal: AbortSignal.timeout(2500)
           };
         } else {
           searchUrl = strategy.getUrl(motUrl);
@@ -258,10 +254,10 @@ export default async function handler(req, res) {
       return res.status(503).json({
         success: false,
         error: 'search_failed',
-        message: 'فشل في البحث في قاعدة بيانات وزارة المواصلات',
+        message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يرجى زيارة الموقع مباشرة للبحث عن النتيجة.',
         fallback: {
           directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة'
+          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة'
         },
         debug: process.env.NODE_ENV === 'development' ? lastError?.message : undefined
       });
