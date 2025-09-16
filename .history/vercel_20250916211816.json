@@ -5,13 +5,13 @@
   ],
   "functions": {
     "src/pages/api/mot-exam.js": {
-      "maxDuration": 7
+      "maxDuration": 6
     },
     "src/pages/api/test.js": {
       "maxDuration": 5
     },
     "src/pages/api/proxy.js": {
-      "maxDuration": 7
+      "maxDuration": 6
     }
   }
 }

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Set timeout for Vercel (max 7 seconds to avoid 504)
+  // Set timeout for Vercel (max 6 seconds to avoid 504)
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       res.status(408).json({
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         }
       });
     }
-  }, 7000);
+  }, 6000);
 
   try {
     if (req.method !== 'POST') {

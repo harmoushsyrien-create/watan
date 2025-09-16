@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Set timeout for Vercel (max 7 seconds to avoid 504)
+  // Set timeout for Vercel (max 6 seconds to avoid 504)
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       res.status(408).json({
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
         }
       });
     }
-  }, 7000);
+  }, 6000);
 
   try {
     if (req.method !== 'POST') {
@@ -55,7 +55,14 @@ export default async function handler(req, res) {
     
     // Try multiple approaches to access the MOT website (optimized for speed)
     const approaches = [
-      // Direct approach (most reliable)
+      // CORS proxy approach (fastest)
+      {
+        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      },
+      // Direct approach (fallback)
       {
         url: motUrl,
         headers: {
@@ -63,19 +70,12 @@ export default async function handler(req, res) {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
         }
-      },
-      // CORS proxy approach (fallback)
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
       }
     ];
 
     let lastError;
     let attempts = 0;
-    const maxAttempts = 1; // Only try 1 approach to save time and avoid 504
+    const maxAttempts = 2; // Only try 2 approaches to save time
     
     for (const approach of approaches) {
       if (attempts >= maxAttempts) break;
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
         const fetchOptions = {
           method: 'GET',
           headers: approach.headers,
-          signal: AbortSignal.timeout(4000) // 4 second timeout
+          signal: AbortSignal.timeout(3000) // 3 second timeout
         };
 
         // Add agent for development to handle SSL issues
@@ -106,14 +106,11 @@ export default async function handler(req, res) {
           break;
         } else {
           console.log(`Failed with status ${initialResponse.status} for approach ${attempts}: ${approach.url.substring(0, 50)}...`);
-          // If first approach fails, return immediately to avoid timeout
-          break;
         }
       } catch (fetchError) {
         console.log(`Error with approach ${attempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         lastError = fetchError;
-        // If first approach fails, return immediately to avoid timeout
-        break;
+        continue;
       }
     }
 
@@ -162,7 +159,15 @@ export default async function handler(req, res) {
     console.log(`Searching for ID: ${searchId}`);
 
     const searchApproaches = [
-      // Direct approach (most reliable)
+      // CORS proxy approach (fastest)
+      {
+        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      },
+      // Direct approach (fallback)
       {
         url: motUrl,
         headers: {
@@ -171,21 +176,13 @@ export default async function handler(req, res) {
           'Origin': 'https://www.mot.gov.ps',
           'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
-      },
-      // CORS proxy approach (fallback)
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
       }
     ];
 
     let searchResponse;
     let searchLastError;
     let searchAttempts = 0;
-    const maxSearchAttempts = 1; // Only try 1 approach to save time and avoid 504
+    const maxSearchAttempts = 2; // Only try 2 approaches to save time
     
     for (const approach of searchApproaches) {
       if (searchAttempts >= maxSearchAttempts) break;
@@ -198,7 +195,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: approach.headers,
           body: formData,
-          signal: AbortSignal.timeout(4000) // 4 second timeout
+          signal: AbortSignal.timeout(3000) // 3 second timeout
         };
 
         // Add agent for development to handle SSL issues
@@ -217,14 +214,11 @@ export default async function handler(req, res) {
           break;
         } else {
           console.log(`Search failed with status ${searchResponse.status} for approach ${searchAttempts}: ${approach.url.substring(0, 50)}...`);
-          // If first approach fails, return immediately to avoid timeout
-          break;
         }
       } catch (fetchError) {
         console.log(`Search error with approach ${searchAttempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         searchLastError = fetchError;
-        // If first approach fails, return immediately to avoid timeout
-        break;
+        continue;
       }
     }
 
