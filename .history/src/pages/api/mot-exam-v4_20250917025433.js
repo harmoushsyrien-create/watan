@@ -173,16 +173,6 @@ export default async function handler(req, res) {
 
     if (isVercel) {
       console.log('Vercel environment detected - using custom Render proxy');
-
-      // Pre-warm the Render proxy (wake it up if sleeping)
-      console.log('Pre-warming Render proxy...');
-      try {
-        await axios.get('https://cors-jquj.onrender.com', { timeout: 10000 });
-        console.log('Render proxy pre-warmed successfully');
-      } catch (warmupError) {
-        console.log('Render proxy warmup failed (may be sleeping):', warmupError.message);
-      }
-
       // Use our own deployed Render proxy first (most reliable)
       connectionMethods.push(
         // Our custom Render proxy (primary)
@@ -273,12 +263,8 @@ export default async function handler(req, res) {
             requestConfig.headers['Connection'] = 'close';
             break;
           case 'proxy':
-            // Standard proxy requests with longer timeout for Render (free tier sleeps)
-            if (connection.url.includes('cors-jquj.onrender.com')) {
-              requestConfig.timeout = 120000; // 2 minutes for Render proxy wake-up
-            } else {
-              requestConfig.timeout = 18000; // 18 seconds for other proxies
-            }
+            // Standard proxy requests
+            requestConfig.timeout = 18000;
             break;
           case 'http':
             // HTTP requests don't need HTTPS agents
@@ -448,12 +434,8 @@ export default async function handler(req, res) {
             searchConfig.headers['Referer'] = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
             break;
           case 'proxy':
-            // Standard proxy requests with longer timeout for Render (free tier sleeps)
-            if (searchMethod.url.includes('cors-jquj.onrender.com')) {
-              searchConfig.timeout = 120000; // 2 minutes for Render proxy wake-up
-            } else {
-              searchConfig.timeout = 18000; // 18 seconds for other proxies
-            }
+            // Standard proxy requests
+            searchConfig.timeout = 18000;
             break;
           case 'http':
             searchConfig.headers['Origin'] = 'http://www.mot.gov.ps';
