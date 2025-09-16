@@ -274,56 +274,25 @@ export default async function handler(req, res) {
       try {
         console.log(`Trying search approach: ${approach.url.substring(0, 50)}...`);
         
-        let searchOptions;
-        
-        if (approach.useProxy) {
-          // Use custom proxy
-          searchOptions = {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(approach.proxyData),
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
-        } else {
-          // Direct fetch
-          searchOptions = {
-            method: 'POST',
-            headers: approach.headers,
-            body: formData,
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
+        const searchOptions = {
+          method: 'POST',
+          headers: approach.headers,
+          body: formData,
+          signal: AbortSignal.timeout(8000) // 8 second timeout
+        };
 
-          // Add agent for development to handle SSL issues
-          if (process.env.NODE_ENV === 'development') {
-            const https = require('https');
-            const agent = new https.Agent({
-              rejectUnauthorized: false
-            });
-            searchOptions.agent = agent;
-          }
+        // Add agent for development to handle SSL issues
+        if (process.env.NODE_ENV === 'development') {
+          const https = require('https');
+          const agent = new https.Agent({
+            rejectUnauthorized: false
+          });
+          searchOptions.agent = agent;
         }
 
         searchResponse = await fetch(approach.url, searchOptions);
         
-        if (approach.useProxy && searchResponse.ok) {
-          // Handle proxy response
-          const proxyResult = await searchResponse.json();
-          if (proxyResult.success) {
-            // Create a mock response object
-            searchResponse = {
-              ok: true,
-              status: proxyResult.status,
-              text: () => Promise.resolve(proxyResult.data)
-            };
-            console.log(`Search success with custom proxy approach`);
-            break;
-          } else {
-            console.log(`Search proxy failed: ${proxyResult.message}`);
-            continue;
-          }
-        } else if (searchResponse.ok) {
+        if (searchResponse.ok) {
           console.log(`Search success with approach: ${approach.url.substring(0, 50)}...`);
           break;
         } else {

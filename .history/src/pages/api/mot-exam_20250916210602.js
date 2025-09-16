@@ -82,23 +82,6 @@ export default async function handler(req, res) {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'X-Requested-With': 'XMLHttpRequest'
         }
-      },
-      // Custom proxy approach
-      {
-        url: '/api/proxy',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        useProxy: true,
-        proxyData: {
-          url: motUrl,
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
-          }
-        }
       }
     ];
 
@@ -107,55 +90,24 @@ export default async function handler(req, res) {
       try {
         console.log(`Trying approach: ${approach.url.substring(0, 50)}...`);
         
-        let fetchOptions;
-        
-        if (approach.useProxy) {
-          // Use custom proxy
-          fetchOptions = {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(approach.proxyData),
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
-        } else {
-          // Direct fetch
-          fetchOptions = {
-            method: 'GET',
-            headers: approach.headers,
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
+        const fetchOptions = {
+          method: 'GET',
+          headers: approach.headers,
+          signal: AbortSignal.timeout(8000) // 8 second timeout
+        };
 
-          // Add agent for development to handle SSL issues
-          if (process.env.NODE_ENV === 'development') {
-            const https = require('https');
-            const agent = new https.Agent({
-              rejectUnauthorized: false
-            });
-            fetchOptions.agent = agent;
-          }
+        // Add agent for development to handle SSL issues
+        if (process.env.NODE_ENV === 'development') {
+          const https = require('https');
+          const agent = new https.Agent({
+            rejectUnauthorized: false
+          });
+          fetchOptions.agent = agent;
         }
 
         initialResponse = await fetch(approach.url, fetchOptions);
         
-        if (approach.useProxy && initialResponse.ok) {
-          // Handle proxy response
-          const proxyResult = await initialResponse.json();
-          if (proxyResult.success) {
-            // Create a mock response object
-            initialResponse = {
-              ok: true,
-              status: proxyResult.status,
-              text: () => Promise.resolve(proxyResult.data)
-            };
-            console.log(`Success with custom proxy approach`);
-            break;
-          } else {
-            console.log(`Proxy failed: ${proxyResult.message}`);
-            continue;
-          }
-        } else if (initialResponse.ok) {
+        if (initialResponse.ok) {
           console.log(`Success with approach: ${approach.url.substring(0, 50)}...`);
           break;
         } else {
@@ -181,6 +133,11 @@ export default async function handler(req, res) {
         },
         error: process.env.NODE_ENV === 'development' ? lastError?.message : undefined
       });
+    }
+
+    if (!initialResponse.ok) {
+      console.error(`Initial request failed with status: ${initialResponse.status}`);
+      throw new Error(`فشل في الاتصال بموقع وزارة المواصلات. رمز الخطأ: ${initialResponse.status}`);
     }
 
     const initialHtml = await initialResponse.text();
@@ -209,136 +166,41 @@ export default async function handler(req, res) {
     formData.append('TextBox1', searchId);
     formData.append('btnSearch', 'بحث');
 
-    // Step 4: Submit search request using the same approach that worked
+    // Step 4: Submit search request
     console.log(`Searching for ID: ${searchId}`);
 
-    const searchApproaches = [
-      // Direct approach
-      {
-        url: motUrl,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://www.mot.gov.ps',
-          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          'Cache-Control': 'no-cache'
-        }
+    const searchOptions = {
+      method: 'POST',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://www.mot.gov.ps',
+        'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'no-cache'
       },
-      // CORS proxy approach
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      },
-      // Alternative CORS proxy
-      {
-        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      },
-      // Custom proxy approach
-      {
-        url: '/api/proxy',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        useProxy: true,
-        proxyData: {
-          url: motUrl,
-          method: 'POST',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://www.mot.gov.ps',
-            'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-          },
-          body: formData.toString()
-        }
-      }
-    ];
+      body: formData,
+      signal: AbortSignal.timeout(8000) // 8 second timeout
+    };
 
-    let searchResponse;
-    let searchLastError;
-    
-    for (const approach of searchApproaches) {
-      try {
-        console.log(`Trying search approach: ${approach.url.substring(0, 50)}...`);
-        
-        let searchOptions;
-        
-        if (approach.useProxy) {
-          // Use custom proxy
-          searchOptions = {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(approach.proxyData),
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
-        } else {
-          // Direct fetch
-          searchOptions = {
-            method: 'POST',
-            headers: approach.headers,
-            body: formData,
-            signal: AbortSignal.timeout(8000) // 8 second timeout
-          };
-
-          // Add agent for development to handle SSL issues
-          if (process.env.NODE_ENV === 'development') {
-            const https = require('https');
-            const agent = new https.Agent({
-              rejectUnauthorized: false
-            });
-            searchOptions.agent = agent;
-          }
-        }
-
-        searchResponse = await fetch(approach.url, searchOptions);
-        
-        if (approach.useProxy && searchResponse.ok) {
-          // Handle proxy response
-          const proxyResult = await searchResponse.json();
-          if (proxyResult.success) {
-            // Create a mock response object
-            searchResponse = {
-              ok: true,
-              status: proxyResult.status,
-              text: () => Promise.resolve(proxyResult.data)
-            };
-            console.log(`Search success with custom proxy approach`);
-            break;
-          } else {
-            console.log(`Search proxy failed: ${proxyResult.message}`);
-            continue;
-          }
-        } else if (searchResponse.ok) {
-          console.log(`Search success with approach: ${approach.url.substring(0, 50)}...`);
-          break;
-        } else {
-          console.log(`Search failed with status ${searchResponse.status} for approach: ${approach.url.substring(0, 50)}...`);
-        }
-      } catch (fetchError) {
-        console.log(`Search error with approach: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
-        searchLastError = fetchError;
-        continue;
-      }
+    // Add agent for development to handle SSL issues
+    if (process.env.NODE_ENV === 'development') {
+      const https = require('https');
+      const agent = new https.Agent({
+        rejectUnauthorized: false
+      });
+      searchOptions.agent = agent;
     }
 
-    if (!searchResponse || !searchResponse.ok) {
-      console.error('All search approaches failed:', searchLastError);
-      throw new Error(`فشل في البحث في قاعدة بيانات وزارة المواصلات. رمز الخطأ: ${searchResponse?.status || 'UNKNOWN'}`);
+    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', searchOptions);
+
+    if (!searchResponse.ok) {
+      console.error(`Search request failed with status: ${searchResponse.status}`);
+      throw new Error(`فشل في البحث في قاعدة بيانات وزارة المواصلات. رمز الخطأ: ${searchResponse.status}`);
     }
 
     const resultHtml = await searchResponse.text();
