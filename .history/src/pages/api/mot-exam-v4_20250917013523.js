@@ -274,11 +274,34 @@ export default async function handler(req, res) {
 
     console.log(`Searching for ID: ${searchId}`);
 
-    // Step 4: Submit search request with environment-based approach
+    // Step 4: Submit search request with comprehensive fallbacks
     let searchResponse, resultHtml;
     
-    if (isProduction) {
-      console.log('Production environment - using proxy services for search...');
+    try {
+      console.log('Attempting search with SSL bypass...');
+      searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://www.mot.gov.ps',
+          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Connection': 'keep-alive'
+        },
+        httpsAgent,
+        timeout: 30000,
+        validateStatus: function (status) {
+          return status >= 200 && status < 300;
+        }
+      });
+      
+      resultHtml = searchResponse.data;
+      console.log('Search with SSL bypass successful');
+    } catch (searchError) {
+      console.error('Search with SSL bypass failed:', searchError.message);
+      
+      // Try proxy services for search
+      console.log('Trying proxy services for search...');
       
       const searchProxyServices = [
         {
@@ -300,26 +323,6 @@ export default async function handler(req, res) {
         {
           name: 'ProxyCORS',
           url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'CORS Proxy',
-          url: 'https://corsproxy.io/?https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'ProxySite.com',
-          url: 'https://www.proxysite.com/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CroxyProxy',
-          url: 'https://www.croxyproxy.com/_p/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'GratisProxy',
-          url: 'https://proxygratis.id/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'CoProxy',
-          url: 'https://coproxy.com/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
         }
       ];
 
@@ -327,16 +330,12 @@ export default async function handler(req, res) {
       
       for (const proxy of searchProxyServices) {
         try {
-          console.log(`Trying ${proxy.name} for search...`);
+          console.log(`Trying ${proxy.name} proxy for search...`);
           
           const proxySearchResponse = await axios.post(proxy.url, formData.toString(), {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Origin': 'https://www.mot.gov.ps',
-              'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Connection': 'keep-alive'
+              'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
+              'Content-Type': 'application/x-www-form-urlencoded'
             },
             timeout: 20000,
             validateStatus: function (status) {
@@ -346,115 +345,33 @@ export default async function handler(req, res) {
           
           searchResponse = proxySearchResponse;
           resultHtml = proxySearchResponse.data;
-          console.log(`${proxy.name} search successful`);
+          console.log(`${proxy.name} search proxy successful`);
           searchSuccess = true;
           break;
         } catch (proxyError) {
-          console.error(`${proxy.name} search failed:`, proxyError.message);
+          console.error(`${proxy.name} search proxy failed:`, proxyError.message);
           continue;
         }
       }
       
       if (!searchSuccess) {
-        throw new Error('All proxy services failed for search in production');
-      }
-    } else {
-      // In development, try direct connection first
-      try {
-        console.log('Development environment - attempting search with SSL bypass...');
-        searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://www.mot.gov.ps',
-            'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Connection': 'keep-alive'
-          },
-          httpsAgent,
-          timeout: 30000,
-          validateStatus: function (status) {
-            return status >= 200 && status < 300;
-          }
-        });
-        
-        resultHtml = searchResponse.data;
-        console.log('Search with SSL bypass successful');
-      } catch (searchError) {
-        console.error('Search with SSL bypass failed:', searchError.message);
-        
-        // Fallback to proxy services in development
-        console.log('Trying proxy services for search as fallback...');
-        
-        const searchProxyServices = [
-          {
-            name: 'Hide.me Free Web Proxy',
-            url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-          },
-          {
-            name: 'AllOrigins',
-            url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-          },
-          {
-            name: 'ThingProxy',
-            url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-          },
-          {
-            name: 'CORS Anywhere',
-            url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-          },
-          {
-            name: 'ProxyCORS',
-            url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-          }
-        ];
-
-        let searchSuccess = false;
-        
-        for (const proxy of searchProxyServices) {
-          try {
-            console.log(`Trying ${proxy.name} proxy for search...`);
-            
-            const proxySearchResponse = await axios.post(proxy.url, formData.toString(), {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
-                'Content-Type': 'application/x-www-form-urlencoded'
-              },
-              timeout: 20000,
-              validateStatus: function (status) {
-                return status >= 200 && status < 300;
-              }
-            });
-            
-            searchResponse = proxySearchResponse;
-            resultHtml = proxySearchResponse.data;
-            console.log(`${proxy.name} search proxy successful`);
-            searchSuccess = true;
-            break;
-          } catch (proxyError) {
-            console.error(`${proxy.name} search proxy failed:`, proxyError.message);
-            continue;
-          }
-        }
-        
-        if (!searchSuccess) {
-          // Last resort: try alternative search approaches
-          try {
-            console.log('Trying alternative search approach...');
-            
-            const altHttpsAgent = new https.Agent({ 
-              rejectUnauthorized: false,
-              secureProtocol: 'TLSv1_method',
-              ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
-            });
-            
-            searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
+        // Last resort: try alternative search approaches
+        try {
+          console.log('Trying alternative search approach...');
+          
+          const altHttpsAgent = new https.Agent({ 
+            rejectUnauthorized: false,
+            secureProtocol: 'TLSv1_method',
+            ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
+          });
+          
+          searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Accept-Encoding': 'gzip, deflate',
               'Connection': 'keep-alive'
             },
             httpsAgent: altHttpsAgent,
