@@ -18,12 +18,15 @@ export default async function handler(req, res) {
     console.log(`Testing Vercel simulation with search ID: ${searchId}`);
 
     // Force Vercel environment variables to simulate production
-    const originalVercel = process.env.VERCEL;
-    const originalNodeEnv = process.env.NODE_ENV;
+    const originalEnv = {
+      VERCEL: process.env.VERCEL,
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV
+    };
 
-    process.env.VERCEL = 'true';
-    process.env.NODE_ENV = 'production';
-    process.env.VERCEL_ENV = 'production';
+    process.env['VERCEL'] = 'true';
+    process.env['NODE_ENV'] = 'production';
+    process.env['VERCEL_ENV'] = 'production';
 
     console.log('Simulating Vercel environment...');
 
@@ -49,8 +52,9 @@ export default async function handler(req, res) {
     await motHandler(req, mockRes);
 
     // Restore original environment
-    process.env.VERCEL = originalVercel;
-    process.env.NODE_ENV = originalNodeEnv;
+    process.env['VERCEL'] = originalEnv.VERCEL;
+    process.env['NODE_ENV'] = originalEnv.NODE_ENV;
+    process.env['VERCEL_ENV'] = originalEnv.VERCEL_ENV;
 
     // Return the test results
     return res.status(200).json({
