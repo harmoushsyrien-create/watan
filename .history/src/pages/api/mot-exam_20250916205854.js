@@ -126,7 +126,7 @@ export default async function handler(req, res) {
     // Step 4: Submit search request
     console.log(`Searching for ID: ${searchId}`);
 
-    const searchOptions = {
+    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
       method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -142,18 +142,7 @@ export default async function handler(req, res) {
       },
       body: formData,
       signal: AbortSignal.timeout(8000) // 8 second timeout
-    };
-
-    // Add agent for development to handle SSL issues
-    if (process.env.NODE_ENV === 'development') {
-      const https = require('https');
-      const agent = new https.Agent({
-        rejectUnauthorized: false
-      });
-      searchOptions.agent = agent;
-    }
-
-    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', searchOptions);
+    });
 
     if (!searchResponse.ok) {
       console.error(`Search request failed with status: ${searchResponse.status}`);

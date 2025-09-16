@@ -1,11 +1,6 @@
 // Server-side API route for MOT exam results
 // This bypasses CORS by running on the server
 
-// Handle SSL certificate issues for development
-if (process.env.NODE_ENV === 'development') {
-  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-}
-
 export default async function handler(req, res) {
   // Set CORS headers for Vercel
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -48,8 +43,7 @@ export default async function handler(req, res) {
 
     let initialResponse;
     try {
-      // Try with different approaches for SSL issues
-      const fetchOptions = {
+      initialResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -65,18 +59,7 @@ export default async function handler(req, res) {
           'Sec-Fetch-Site': 'none'
         },
         signal: AbortSignal.timeout(8000) // 8 second timeout
-      };
-
-      // Add agent for development to handle SSL issues
-      if (process.env.NODE_ENV === 'development') {
-        const https = require('https');
-        const agent = new https.Agent({
-          rejectUnauthorized: false
-        });
-        fetchOptions.agent = agent;
-      }
-
-      initialResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', fetchOptions);
+      });
     } catch (fetchError) {
       console.error('Failed to fetch MOT website:', fetchError);
       // Return a helpful response instead of throwing an error
@@ -126,7 +109,7 @@ export default async function handler(req, res) {
     // Step 4: Submit search request
     console.log(`Searching for ID: ${searchId}`);
 
-    const searchOptions = {
+    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
       method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -142,18 +125,7 @@ export default async function handler(req, res) {
       },
       body: formData,
       signal: AbortSignal.timeout(8000) // 8 second timeout
-    };
-
-    // Add agent for development to handle SSL issues
-    if (process.env.NODE_ENV === 'development') {
-      const https = require('https');
-      const agent = new https.Agent({
-        rejectUnauthorized: false
-      });
-      searchOptions.agent = agent;
-    }
-
-    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', searchOptions);
+    });
 
     if (!searchResponse.ok) {
       console.error(`Search request failed with status: ${searchResponse.status}`);
@@ -232,15 +204,10 @@ export default async function handler(req, res) {
       }
 
       // Check if it's a network error
-      if (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('503')) {
+      if (error.message.includes('fetch') || error.message.includes('network')) {
         return res.status(503).json({
           success: false,
-          message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يرجى زيارة الموقع مباشرة للبحث عن النتيجة.',
-          fallback: {
-            directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-            instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة',
-            alternative: 'أو يمكنك المحاولة مرة أخرى لاحقاً'
-          },
+          message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً. يرجى المحاولة لاحقاً أو زيارة الموقع مباشرة.',
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
       }

@@ -1,11 +1,6 @@
 // Server-side API route for MOT exam results
 // This bypasses CORS by running on the server
 
-// Handle SSL certificate issues for development
-if (process.env.NODE_ENV === 'development') {
-  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-}
-
 export default async function handler(req, res) {
   // Set CORS headers for Vercel
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,58 +38,26 @@ export default async function handler(req, res) {
         message: 'رقم الهوية مطلوب'
       });
     }
-    // Step 1: Try to fetch the initial page from MOT website
-    console.log('Attempting to fetch initial page from MOT website...');
+    // Step 1: Fetch the initial page to get form tokens
+    console.log('Fetching initial page from MOT website...');
 
-    let initialResponse;
-    try {
-      // Try with different approaches for SSL issues
-      const fetchOptions = {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none'
-        },
-        signal: AbortSignal.timeout(8000) // 8 second timeout
-      };
-
-      // Add agent for development to handle SSL issues
-      if (process.env.NODE_ENV === 'development') {
-        const https = require('https');
-        const agent = new https.Agent({
-          rejectUnauthorized: false
-        });
-        fetchOptions.agent = agent;
-      }
-
-      initialResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', fetchOptions);
-    } catch (fetchError) {
-      console.error('Failed to fetch MOT website:', fetchError);
-      // Return a helpful response instead of throwing an error
-      return res.status(503).json({
-        success: false,
-        message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يرجى زيارة الموقع مباشرة للبحث عن النتيجة.',
-        fallback: {
-          directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة',
-          alternative: 'أو يمكنك المحاولة مرة أخرى لاحقاً'
-        },
-        error: process.env.NODE_ENV === 'development' ? fetchError.message : undefined
-      });
-    }
+    const initialResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      signal: AbortSignal.timeout(8000) // 8 second timeout
+    });
 
     if (!initialResponse.ok) {
-      console.error(`Initial request failed with status: ${initialResponse.status}`);
-      throw new Error(`فشل في الاتصال بموقع وزارة المواصلات. رمز الخطأ: ${initialResponse.status}`);
+      throw new Error(`HTTP error! status: ${initialResponse.status}`);
     }
 
     const initialHtml = await initialResponse.text();
@@ -126,7 +89,7 @@ export default async function handler(req, res) {
     // Step 4: Submit search request
     console.log(`Searching for ID: ${searchId}`);
 
-    const searchOptions = {
+    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
       method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -142,22 +105,10 @@ export default async function handler(req, res) {
       },
       body: formData,
       signal: AbortSignal.timeout(8000) // 8 second timeout
-    };
-
-    // Add agent for development to handle SSL issues
-    if (process.env.NODE_ENV === 'development') {
-      const https = require('https');
-      const agent = new https.Agent({
-        rejectUnauthorized: false
-      });
-      searchOptions.agent = agent;
-    }
-
-    const searchResponse = await fetch('https://www.mot.gov.ps/mot_Ser/Exam.aspx', searchOptions);
+    });
 
     if (!searchResponse.ok) {
-      console.error(`Search request failed with status: ${searchResponse.status}`);
-      throw new Error(`فشل في البحث في قاعدة بيانات وزارة المواصلات. رمز الخطأ: ${searchResponse.status}`);
+      throw new Error(`HTTP error! status: ${searchResponse.status}`);
     }
 
     const resultHtml = await searchResponse.text();
@@ -222,29 +173,6 @@ export default async function handler(req, res) {
     console.error('MOT API Error:', error);
 
     if (!res.headersSent) {
-      // Check if it's a timeout error
-      if (error.name === 'AbortError' || error.message.includes('timeout')) {
-        return res.status(408).json({
-          success: false,
-          message: 'انتهت مهلة الطلب. يرجى المحاولة لاحقاً أو زيارة موقع وزارة المواصلات مباشرة.',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-      }
-
-      // Check if it's a network error
-      if (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('503')) {
-        return res.status(503).json({
-          success: false,
-          message: 'لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يرجى زيارة الموقع مباشرة للبحث عن النتيجة.',
-          fallback: {
-            directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-            instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة',
-            alternative: 'أو يمكنك المحاولة مرة أخرى لاحقاً'
-          },
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-      }
-
       return res.status(500).json({
         success: false,
         message: 'حدث خطأ أثناء جلب البيانات من موقع وزارة المواصلات. يرجى المحاولة لاحقاً.',

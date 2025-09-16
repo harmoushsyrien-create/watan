@@ -292,7 +292,7 @@ export default function TheoreticalExamPage() {
           </Typography>
 
           <Typography variant="body2" sx={{ mb: 2 }}>
-            لا يمكن الوصول لموقع وزارة المواصلات حالياً من الخوادم. يمكنك حل هذه المشكلة بإحدى الطرق التالية:
+            حدث خطأ أثناء الاتصال بموقع وزارة المواصلات. يمكنك حل هذه المشكلة بإحدى الطرق التالية:
           </Typography>
 
           <Box component="ol" sx={{ pl: 2, mb: 2 }}>
