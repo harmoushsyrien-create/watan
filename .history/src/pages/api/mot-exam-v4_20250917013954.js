@@ -137,7 +137,113 @@ export default async function handler(req, res) {
         console.log('Direct connection with SSL bypass successful');
       } catch (fetchError) {
         console.error('Direct connection failed:', fetchError.message);
-        throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${fetchError.message}`);
+        
+        // Fallback to proxy services in development
+        console.log('Trying proxy services as fallback...');
+        
+        const proxyServices = [
+          {
+            name: 'Hide.me Free Web Proxy',
+            url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'AllOrigins',
+            url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'ThingProxy',
+            url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'CORS Anywhere',
+            url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'ProxyCORS',
+            url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'CORS Proxy',
+            url: 'https://corsproxy.io/?https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'ProxySite.com',
+            url: 'https://www.proxysite.com/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'CroxyProxy',
+            url: 'https://www.croxyproxy.com/_p/process.php?d=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'GratisProxy',
+            url: 'https://proxygratis.id/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'CoProxy',
+            url: 'https://coproxy.com/proxy.php?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          }
+        ];
+
+      let proxySuccess = false;
+      
+      for (const proxy of proxyServices) {
+        try {
+          console.log(`Trying ${proxy.name} proxy...`);
+          
+          const proxyResponse = await axios.get(proxy.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
+              'Accept': 'text/html'
+            },
+            timeout: 20000,
+            validateStatus: function (status) {
+              return status >= 200 && status < 300;
+            }
+          });
+          
+          initialResponse = proxyResponse;
+          initialHtml = proxyResponse.data;
+          console.log(`${proxy.name} proxy successful`);
+          proxySuccess = true;
+          break;
+        } catch (proxyError) {
+          console.error(`${proxy.name} proxy failed:`, proxyError.message);
+          continue;
+        }
+      }
+      
+      if (!proxySuccess) {
+        // Last resort: try alternative SSL approaches
+        try {
+          console.log('Trying alternative SSL approach...');
+          
+          const altHttpsAgent = new https.Agent({ 
+            rejectUnauthorized: false,
+            secureProtocol: 'TLSv1_method',
+            ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
+          });
+          
+          initialResponse = await axios.get('https://www.mot.gov.ps/mot_Ser/Exam.aspx', {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Accept-Encoding': 'gzip, deflate',
+              'Connection': 'keep-alive'
+            },
+            httpsAgent: altHttpsAgent,
+            timeout: 30000,
+            validateStatus: function (status) {
+              return status >= 200 && status < 300;
+            }
+          });
+          
+          initialHtml = initialResponse.data;
+          console.log('Alternative SSL approach successful');
+        } catch (altError) {
+          console.error('Alternative SSL approach failed:', altError.message);
+          throw new Error(`لا يمكن الاتصال بموقع وزارة المواصلات: ${altError.message}`);
+        }
       }
     }
 
@@ -276,15 +382,111 @@ export default async function handler(req, res) {
         console.log('Search with SSL bypass successful');
       } catch (searchError) {
         console.error('Search with SSL bypass failed:', searchError.message);
-        throw new Error(`فشل في البحث عن النتيجة: ${searchError.message}`);
+        
+        // Fallback to proxy services in development
+        console.log('Trying proxy services for search as fallback...');
+        
+        const searchProxyServices = [
+          {
+            name: 'Hide.me Free Web Proxy',
+            url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'AllOrigins',
+            url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+          },
+          {
+            name: 'ThingProxy',
+            url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'CORS Anywhere',
+            url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          {
+            name: 'ProxyCORS',
+            url: 'https://proxycors.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          }
+        ];
+
+        let searchSuccess = false;
+        
+        for (const proxy of searchProxyServices) {
+          try {
+            console.log(`Trying ${proxy.name} proxy for search...`);
+            
+            const proxySearchResponse = await axios.post(proxy.url, formData.toString(), {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; VercelBot/1.0)',
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              timeout: 20000,
+              validateStatus: function (status) {
+                return status >= 200 && status < 300;
+              }
+            });
+            
+            searchResponse = proxySearchResponse;
+            resultHtml = proxySearchResponse.data;
+            console.log(`${proxy.name} search proxy successful`);
+            searchSuccess = true;
+            break;
+          } catch (proxyError) {
+            console.error(`${proxy.name} search proxy failed:`, proxyError.message);
+            continue;
+          }
+        }
+        
+        if (!searchSuccess) {
+          // Last resort: try alternative search approaches
+          try {
+            console.log('Trying alternative search approach...');
+            
+            const altHttpsAgent = new https.Agent({ 
+              rejectUnauthorized: false,
+              secureProtocol: 'TLSv1_method',
+              ciphers: 'ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH'
+            });
+            
+            searchResponse = await axios.post('https://www.mot.gov.ps/mot_Ser/Exam.aspx', formData.toString(), {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+              'Connection': 'keep-alive'
+            },
+            httpsAgent: altHttpsAgent,
+            timeout: 30000,
+            validateStatus: function (status) {
+              return status >= 200 && status < 300;
+            }
+          });
+          
+          resultHtml = searchResponse.data;
+          console.log('Alternative search approach successful');
+        } catch (altSearchError) {
+          console.error('Alternative search approach failed:', altSearchError.message);
+          throw new Error(`فشل في البحث عن النتيجة: ${altSearchError.message}`);
+        }
       }
     }
 
-    // Step 5: Parse results using enhanced parsing
+    // Step 5: Parse results using regex
     console.log('Parsing search results...');
     console.log('Result HTML length:', resultHtml.length);
     console.log('Result HTML preview (first 2000 chars):', resultHtml.substring(0, 2000));
     console.log('Result HTML preview (last 1000 chars):', resultHtml.substring(resultHtml.length - 1000));
+    
+    // Check for various table patterns
+    const tableMatch = resultHtml.match(/<table[^>]*id="Table1"[^>]*>(.*?)<\/table>/is);
+    const tableMatch2 = resultHtml.match(/<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)<\/table>/is);
+    const tableMatch3 = resultHtml.match(/<table[^>]*>(.*?)<\/table>/is);
+    
+    console.log('Table1 match:', !!tableMatch);
+    console.log('Table class match:', !!tableMatch2);
+    console.log('Any table match:', !!tableMatch3);
     
     // Check for the specific table structure we see in the logs
     const examTableMatch = resultHtml.match(/<table[^>]*>(.*?<th><span[^>]*>درجة الرخصة<\/span><\/th>.*?)<\/table>/is);
@@ -429,69 +631,70 @@ export default async function handler(req, res) {
         }
       });
     } else {
-      // Fallback to basic table parsing
-      console.log('No exam table found, trying basic table parsing...');
+      console.log('No Table1 found in results');
       
-      const tableMatch = resultHtml.match(/<table[^>]*id="Table1"[^>]*>(.*?)<\/table>/is);
-      const tableMatch2 = resultHtml.match(/<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)<\/table>/is);
-      const tableMatch3 = resultHtml.match(/<table[^>]*>(.*?)<\/table>/is);
+      // Check for various error message patterns
+      const errorPatterns = [
+        /<span[^>]*class="danger"[^>]*>(.*?)<\/span>/is,
+        /<div[^>]*class="[^"]*error[^"]*"[^>]*>(.*?)<\/div>/is,
+        /<p[^>]*class="[^"]*error[^"]*"[^>]*>(.*?)<\/p>/is,
+        /<span[^>]*class="[^"]*error[^"]*"[^>]*>(.*?)<\/span>/is,
+        /<div[^>]*class="[^"]*alert[^"]*"[^>]*>(.*?)<\/div>/is,
+        /<span[^>]*class="[^"]*alert[^"]*"[^>]*>(.*?)<\/span>/is
+      ];
       
-      console.log('Table1 match:', !!tableMatch);
-      console.log('Table class match:', !!tableMatch2);
-      console.log('Any table match:', !!tableMatch3);
-      
-      if (!tableMatch && !tableMatch2 && !tableMatch3) {
-        return res.status(200).json({
-          success: true,
-          found: false,
-          message: 'لم يتم العثور على نتيجة لرقم الهوية المدخل'
-        });
-      }
-      
-      // Use the first available table
-      const selectedTable = tableMatch || tableMatch2 || tableMatch3;
-      const tableContent = selectedTable[1];
-      const rowMatches = tableContent.match(/<tr[^>]*>(.*?)<\/tr>/gis);
-
-      if (!rowMatches || rowMatches.length === 0) {
-        return res.status(200).json({
-          success: true,
-          found: false,
-          message: 'لم يتم العثور على نتيجة لرقم الهوية المدخل'
-        });
-      }
-
-      // Parse table data
-      const rows = [];
-      for (const rowMatch of rowMatches) {
-        const cellMatches = rowMatch.match(/<td[^>]*>(.*?)<\/td>/gis);
-        if (cellMatches && cellMatches.length >= 2) {
-          const row = cellMatches.map(cell => {
-            return cell.replace(/<[^>]*>/g, '').trim();
-          });
-          rows.push(row);
+      let errorMessage = null;
+      for (const pattern of errorPatterns) {
+        const match = resultHtml.match(pattern);
+        if (match) {
+          errorMessage = match[1].trim();
+          console.log('Error message found:', errorMessage);
+          break;
         }
       }
-
-      if (rows.length === 0) {
-        return res.status(200).json({
-          success: true,
-          found: false,
-          message: 'لم يتم العثور على نتيجة لرقم الهوية المدخل'
-        });
+      
+      // Check if there are any tables at all
+      if (tableMatch3) {
+        console.log('Found other tables, checking content...');
+        const tableContent = tableMatch3[1];
+        console.log('Table content preview:', tableContent.substring(0, 500));
+        
+        // Try to extract data from any table
+        const rowMatches = tableContent.match(/<tr[^>]*>(.*?)<\/tr>/gis);
+        if (rowMatches && rowMatches.length > 0) {
+          console.log('Found rows in alternative table:', rowMatches.length);
+          
+          const rows = [];
+          for (const rowMatch of rowMatches) {
+            const cellMatches = rowMatch.match(/<td[^>]*>(.*?)<\/td>/gis);
+            if (cellMatches && cellMatches.length >= 2) {
+              const row = cellMatches.map(cell => {
+                return cell.replace(/<[^>]*>/g, '').trim();
+              });
+              rows.push(row);
+            }
+          }
+          
+          if (rows.length > 0) {
+            console.log('Successfully extracted data from alternative table:', rows.length, 'rows');
+            return res.status(200).json({
+              success: true,
+              found: true,
+              data: {
+                rows: rows
+              }
+            });
+          }
+        }
       }
-
-      console.log('Results parsed successfully:', rows.length, 'rows found');
-
-      // Return successful response
+      
       return res.status(200).json({
         success: true,
-        found: true,
-        data: {
-          rows: rows
-        }
+        found: false,
+        message: errorMessage || 'لم يتم العثور على نتيجة لرقم الهوية المدخل'
       });
     }
+  }
 
   } catch (error) {
     console.error('MOT API v4 Error:', error);
