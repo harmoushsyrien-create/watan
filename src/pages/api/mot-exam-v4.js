@@ -172,29 +172,35 @@ export default async function handler(req, res) {
     const connectionMethods = [];
 
     if (isVercel) {
-      console.log('Vercel environment detected - using direct connection strategy (proxy services failing)');
-      // Since all proxy services are failing, use direct connections on Vercel too
+      console.log('Vercel environment detected - using mixed strategy (direct + working proxies)');
+      // Based on timeout errors, direct connections to MOT are being blocked
+      // Let's use working proxy services first, then direct as fallback
       connectionMethods.push(
-        // HTTP Direct first (often works best on Vercel)
+        // Working proxy services first (bypass geographic restrictions)
+        {
+          name: 'AllOrigins Proxy',
+          method: 'proxy',
+          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+        },
+        {
+          name: 'CORS Anywhere',
+          method: 'proxy',
+          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'ThingProxy',
+          method: 'proxy',
+          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        // Direct connections as fallback (in case proxy restrictions change)
         {
           name: 'HTTP Direct',
           method: 'http',
           url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
-        // Vercel-optimized HTTPS with different configurations
         {
           name: 'Vercel HTTPS Basic',
           method: 'vercel-https',
-          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'Vercel HTTPS Alt',
-          method: 'alt-https',
-          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'Vercel HTTPS Standard',
-          method: 'https',
           url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
       );
@@ -337,28 +343,33 @@ export default async function handler(req, res) {
     const searchMethods = [];
 
     if (isVercel) {
-      console.log('Using Vercel direct connection search strategy');
+      console.log('Using Vercel mixed strategy for search (proxy + direct)');
       searchMethods.push(
-        // HTTP Direct search first (often works best on Vercel)
+        // Working proxy services first for search (bypass restrictions)
+        {
+          name: 'AllOrigins Search',
+          method: 'proxy',
+          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
+        },
+        {
+          name: 'CORS Anywhere Search',
+          method: 'proxy',
+          url: 'https://cors-anywhere.herokuapp.com/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'ThingProxy Search',
+          method: 'proxy',
+          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        // Direct connections as fallback
         {
           name: 'HTTP Search',
           method: 'http',
           url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
-        // Vercel HTTPS configurations for search
         {
           name: 'Vercel HTTPS Basic Search',
           method: 'vercel-https',
-          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'Vercel HTTPS Alt Search',
-          method: 'alt-https',
-          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        {
-          name: 'Vercel HTTPS Standard Search',
-          method: 'https',
           url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
       );
