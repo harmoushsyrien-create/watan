@@ -97,25 +97,54 @@ export default async function handler(req, res) {
     function isValidMOTContent(html) {
       if (!html || typeof html !== 'string') return false;
 
-      // Check for MOT-specific indicators
-      const motIndicators = [
-        'وزارة المواصلات',
+      // Check for essential MOT indicators that must be present
+      const essentialIndicators = [
         '__VIEWSTATE',
         '__EVENTVALIDATION',
-        'Exam.aspx',
-        'btnSearch',
-        'TextBox1'
+        '__VIEWSTATEGENERATOR',
+        'TextBox1',
+        'btnSearch'
       ];
 
-      let foundIndicators = 0;
-      for (const indicator of motIndicators) {
+      // Check for MOT-specific content indicators
+      const contentIndicators = [
+        'نتيجة امتحان التؤوريا',
+        'أدخل رقم الهوية',
+        'Exam.aspx',
+        'form1',
+        'bootstrap.min.css'
+      ];
+
+      // Count essential indicators (all must be present)
+      let foundEssential = 0;
+      for (const indicator of essentialIndicators) {
         if (html.includes(indicator)) {
-          foundIndicators++;
+          foundEssential++;
         }
       }
 
-      // At least 3 indicators should be present for valid content
-      return foundIndicators >= 3;
+      // Count content indicators (at least 2 must be present)
+      let foundContent = 0;
+      for (const indicator of contentIndicators) {
+        if (html.includes(indicator)) {
+          foundContent++;
+        }
+      }
+
+      // Must have all essential indicators and at least 2 content indicators
+      const isValid = foundEssential === essentialIndicators.length && foundContent >= 2;
+
+      if (!isValid) {
+        console.log('Content validation failed:', {
+          foundEssential: foundEssential,
+          requiredEssential: essentialIndicators.length,
+          foundContent: foundContent,
+          requiredContent: 2,
+          htmlLength: html.length
+        });
+      }
+
+      return isValid;
     }
 
     // Helper function for retry with exponential backoff
@@ -143,36 +172,29 @@ export default async function handler(req, res) {
     const connectionMethods = [];
 
     if (isVercel) {
-      console.log('Vercel environment detected - using Vercel-optimized strategy');
-      // On Vercel, prioritize proxy services and HTTP connections
+      console.log('Vercel environment detected - using direct connection strategy (proxy services failing)');
+      // Since all proxy services are failing, use direct connections on Vercel too
       connectionMethods.push(
-        // Hide.me proxy first (user confirmed it works well)
-        {
-          name: 'Hide.me Proxy',
-          method: 'proxy',
-          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        // Other reliable proxy services
-        {
-          name: 'AllOrigins Proxy',
-          method: 'proxy',
-          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        {
-          name: 'ThingProxy',
-          method: 'proxy',
-          url: 'https://thingproxy.freeboard.io/fetch/https://www.mot.gov.ps/mot_Ser/Exam.aspx'
-        },
-        // HTTP connection (often works better on Vercel)
+        // HTTP Direct first (often works best on Vercel)
         {
           name: 'HTTP Direct',
           method: 'http',
           url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
-        // Vercel-optimized HTTPS
+        // Vercel-optimized HTTPS with different configurations
         {
-          name: 'Vercel HTTPS',
+          name: 'Vercel HTTPS Basic',
           method: 'vercel-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Vercel HTTPS Alt',
+          method: 'alt-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Vercel HTTPS Standard',
+          method: 'https',
           url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
       );
@@ -235,7 +257,7 @@ export default async function handler(req, res) {
             requestConfig.headers['Connection'] = 'close';
             break;
           case 'proxy':
-            // Proxy requests don't need HTTPS agents
+            // Standard proxy requests
             requestConfig.timeout = 18000;
             break;
           case 'http':
@@ -243,6 +265,7 @@ export default async function handler(req, res) {
             break;
         }
 
+        // Make the request (all direct connections now)
         initialResponse = await axios.get(connection.url, requestConfig);
         initialHtml = initialResponse.data;
 
@@ -314,28 +337,28 @@ export default async function handler(req, res) {
     const searchMethods = [];
 
     if (isVercel) {
-      console.log('Using Vercel-optimized search strategy');
+      console.log('Using Vercel direct connection search strategy');
       searchMethods.push(
-        // Hide.me proxy for search (user confirmed works well)
-        {
-          name: 'Hide.me Proxy Search',
-          method: 'proxy',
-          url: 'https://hide.me/en/proxy?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
-        // Other reliable proxies for search
-        {
-          name: 'AllOrigins Search',
-          method: 'proxy',
-          url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.mot.gov.ps/mot_Ser/Exam.aspx')
-        },
+        // HTTP Direct search first (often works best on Vercel)
         {
           name: 'HTTP Search',
           method: 'http',
           url: 'http://www.mot.gov.ps/mot_Ser/Exam.aspx'
         },
+        // Vercel HTTPS configurations for search
         {
-          name: 'Vercel HTTPS Search',
+          name: 'Vercel HTTPS Basic Search',
           method: 'vercel-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Vercel HTTPS Alt Search',
+          method: 'alt-https',
+          url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+        },
+        {
+          name: 'Vercel HTTPS Standard Search',
+          method: 'https',
           url: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
         }
       );
@@ -399,7 +422,7 @@ export default async function handler(req, res) {
             searchConfig.headers['Referer'] = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
             break;
           case 'proxy':
-            // Proxy requests use their own handling
+            // Standard proxy requests
             searchConfig.timeout = 18000;
             break;
           case 'http':
@@ -408,6 +431,7 @@ export default async function handler(req, res) {
             break;
         }
 
+        // Make search request (all direct connections now)
         searchResponse = await axios.post(searchMethod.url, formData.toString(), searchConfig);
         resultHtml = searchResponse.data;
 
