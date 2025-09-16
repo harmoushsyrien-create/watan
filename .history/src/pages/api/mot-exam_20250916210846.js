@@ -17,19 +17,15 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Set timeout for Vercel (max 8 seconds to avoid 504)
+  // Set timeout for Vercel (max 10 seconds)
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       res.status(408).json({
         success: false,
-        message: 'انتهت مهلة الطلب. يرجى المحاولة لاحقاً أو زيارة موقع وزارة المواصلات مباشرة.',
-        fallback: {
-          directLink: 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
-          instructions: 'يمكنك زيارة موقع وزارة المواصلات مباشرة وإدخال رقم الهوية للبحث عن النتيجة'
-        }
+        message: 'انتهت مهلة الطلب. يرجى المحاولة لاحقاً.'
       });
     }
-  }, 8000);
+  }, 10000);
 
   try {
     if (req.method !== 'POST') {
@@ -53,62 +49,120 @@ export default async function handler(req, res) {
     let initialResponse;
     let motUrl = 'https://www.mot.gov.ps/mot_Ser/Exam.aspx';
     
-    // Try multiple approaches to access the MOT website (optimized for speed)
+    // Try multiple approaches to access the MOT website
     const approaches = [
-      // CORS proxy approach (fastest)
+      // Direct approach
+      {
+        url: motUrl,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none'
+        }
+      },
+      // CORS proxy approach
       {
         url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       },
-      // Direct approach (fallback)
+      // Alternative CORS proxy
       {
-        url: motUrl,
+        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      },
+      // Custom proxy approach
+      {
+        url: '/api/proxy',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        useProxy: true,
+        proxyData: {
+          url: motUrl,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3'
+          }
         }
       }
     ];
 
     let lastError;
-    let attempts = 0;
-    const maxAttempts = 2; // Only try 2 approaches to save time
-    
     for (const approach of approaches) {
-      if (attempts >= maxAttempts) break;
-      attempts++;
-      
       try {
-        console.log(`Trying approach ${attempts}: ${approach.url.substring(0, 50)}...`);
+        console.log(`Trying approach: ${approach.url.substring(0, 50)}...`);
         
-        const fetchOptions = {
-          method: 'GET',
-          headers: approach.headers,
-          signal: AbortSignal.timeout(5000) // 5 second timeout
-        };
+        let fetchOptions;
+        
+        if (approach.useProxy) {
+          // Use custom proxy
+          fetchOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(approach.proxyData),
+            signal: AbortSignal.timeout(8000) // 8 second timeout
+          };
+        } else {
+          // Direct fetch
+          fetchOptions = {
+            method: 'GET',
+            headers: approach.headers,
+            signal: AbortSignal.timeout(8000) // 8 second timeout
+          };
 
-        // Add agent for development to handle SSL issues
-        if (process.env.NODE_ENV === 'development') {
-          const https = require('https');
-          const agent = new https.Agent({
-            rejectUnauthorized: false
-          });
-          fetchOptions.agent = agent;
+          // Add agent for development to handle SSL issues
+          if (process.env.NODE_ENV === 'development') {
+            const https = require('https');
+            const agent = new https.Agent({
+              rejectUnauthorized: false
+            });
+            fetchOptions.agent = agent;
+          }
         }
 
         initialResponse = await fetch(approach.url, fetchOptions);
         
-        if (initialResponse.ok) {
-          console.log(`Success with approach ${attempts}: ${approach.url.substring(0, 50)}...`);
+        if (approach.useProxy && initialResponse.ok) {
+          // Handle proxy response
+          const proxyResult = await initialResponse.json();
+          if (proxyResult.success) {
+            // Create a mock response object
+            initialResponse = {
+              ok: true,
+              status: proxyResult.status,
+              text: () => Promise.resolve(proxyResult.data)
+            };
+            console.log(`Success with custom proxy approach`);
+            break;
+          } else {
+            console.log(`Proxy failed: ${proxyResult.message}`);
+            continue;
+          }
+        } else if (initialResponse.ok) {
+          console.log(`Success with approach: ${approach.url.substring(0, 50)}...`);
           break;
         } else {
-          console.log(`Failed with status ${initialResponse.status} for approach ${attempts}: ${approach.url.substring(0, 50)}...`);
+          console.log(`Failed with status ${initialResponse.status} for approach: ${approach.url.substring(0, 50)}...`);
         }
       } catch (fetchError) {
-        console.log(`Error with approach ${attempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
+        console.log(`Error with approach: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         lastError = fetchError;
         continue;
       }
@@ -159,7 +213,23 @@ export default async function handler(req, res) {
     console.log(`Searching for ID: ${searchId}`);
 
     const searchApproaches = [
-      // CORS proxy approach (fastest)
+      // Direct approach
+      {
+        url: motUrl,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://www.mot.gov.ps',
+          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache'
+        }
+      },
+      // CORS proxy approach
       {
         url: `https://api.allorigins.win/raw?url=${encodeURIComponent(motUrl)}`,
         headers: {
@@ -167,56 +237,100 @@ export default async function handler(req, res) {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       },
-      // Direct approach (fallback)
+      // Alternative CORS proxy
       {
-        url: motUrl,
+        url: `https://cors-anywhere.herokuapp.com/${motUrl}`,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Origin': 'https://www.mot.gov.ps',
-          'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      },
+      // Custom proxy approach
+      {
+        url: '/api/proxy',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        useProxy: true,
+        proxyData: {
+          url: motUrl,
+          method: 'POST',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': 'https://www.mot.gov.ps',
+            'Referer': 'https://www.mot.gov.ps/mot_Ser/Exam.aspx'
+          },
+          body: formData.toString()
         }
       }
     ];
 
     let searchResponse;
     let searchLastError;
-    let searchAttempts = 0;
-    const maxSearchAttempts = 2; // Only try 2 approaches to save time
     
     for (const approach of searchApproaches) {
-      if (searchAttempts >= maxSearchAttempts) break;
-      searchAttempts++;
-      
       try {
-        console.log(`Trying search approach ${searchAttempts}: ${approach.url.substring(0, 50)}...`);
+        console.log(`Trying search approach: ${approach.url.substring(0, 50)}...`);
         
-        const searchOptions = {
-          method: 'POST',
-          headers: approach.headers,
-          body: formData,
-          signal: AbortSignal.timeout(5000) // 5 second timeout
-        };
+        let searchOptions;
+        
+        if (approach.useProxy) {
+          // Use custom proxy
+          searchOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(approach.proxyData),
+            signal: AbortSignal.timeout(8000) // 8 second timeout
+          };
+        } else {
+          // Direct fetch
+          searchOptions = {
+            method: 'POST',
+            headers: approach.headers,
+            body: formData,
+            signal: AbortSignal.timeout(8000) // 8 second timeout
+          };
 
-        // Add agent for development to handle SSL issues
-        if (process.env.NODE_ENV === 'development') {
-          const https = require('https');
-          const agent = new https.Agent({
-            rejectUnauthorized: false
-          });
-          searchOptions.agent = agent;
+          // Add agent for development to handle SSL issues
+          if (process.env.NODE_ENV === 'development') {
+            const https = require('https');
+            const agent = new https.Agent({
+              rejectUnauthorized: false
+            });
+            searchOptions.agent = agent;
+          }
         }
 
         searchResponse = await fetch(approach.url, searchOptions);
         
-        if (searchResponse.ok) {
-          console.log(`Search success with approach ${searchAttempts}: ${approach.url.substring(0, 50)}...`);
+        if (approach.useProxy && searchResponse.ok) {
+          // Handle proxy response
+          const proxyResult = await searchResponse.json();
+          if (proxyResult.success) {
+            // Create a mock response object
+            searchResponse = {
+              ok: true,
+              status: proxyResult.status,
+              text: () => Promise.resolve(proxyResult.data)
+            };
+            console.log(`Search success with custom proxy approach`);
+            break;
+          } else {
+            console.log(`Search proxy failed: ${proxyResult.message}`);
+            continue;
+          }
+        } else if (searchResponse.ok) {
+          console.log(`Search success with approach: ${approach.url.substring(0, 50)}...`);
           break;
         } else {
-          console.log(`Search failed with status ${searchResponse.status} for approach ${searchAttempts}: ${approach.url.substring(0, 50)}...`);
+          console.log(`Search failed with status ${searchResponse.status} for approach: ${approach.url.substring(0, 50)}...`);
         }
       } catch (fetchError) {
-        console.log(`Search error with approach ${searchAttempts}: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
+        console.log(`Search error with approach: ${approach.url.substring(0, 50)}... - ${fetchError.message}`);
         searchLastError = fetchError;
         continue;
       }
