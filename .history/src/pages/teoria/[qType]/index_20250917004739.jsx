@@ -29,7 +29,7 @@ const renderComponent = (qType) => {
     case "cTeoria":
       return <Types isNormal={false} />;
     case "oral":
-      return <OralQuestions />;
+      return <div>مكون شفوي</div>;
     case "training":
       return <div>مكون تدريبي</div>;
     default:

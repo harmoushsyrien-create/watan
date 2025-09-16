@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Container,
   Box,
   Typography,
   Card,
@@ -12,9 +11,8 @@ import {
 } from "@mui/material";
 import { ArrowBack, VolumeUp, VolumeOff } from "@mui/icons-material";
 import { useRouter } from "next/router";
-import SectionTitle from "@/components/ui/SectionTitle";
 
-export default function OralQuestionsPage() {
+export default function OralQuestions() {
   const theme = useTheme();
   const router = useRouter();
   const [questions, setQuestions] = useState([]);
@@ -61,7 +59,7 @@ export default function OralQuestionsPage() {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4, direction: "rtl" }}>
+    <Box sx={{ py: 4, direction: "rtl" }}>
       <Box sx={{ mb: 4 }}>
         <Button
           startIcon={<ArrowBack />}
@@ -76,11 +74,6 @@ export default function OralQuestionsPage() {
         >
           العودة
         </Button>
-        
-        <SectionTitle
-          title="أسئلة التؤوريا الشفوية"
-          subTitle="تدرب على الأسئلة الشفوية لاختبار الرخصة"
-        />
       </Box>
 
       {questions.length > 0 ? (
@@ -267,6 +260,6 @@ export default function OralQuestionsPage() {
           </Typography>
         </Card>
       )}
-    </Container>
+    </Box>
   );
 }
