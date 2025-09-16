@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title> | الأهلية لتعليم السياقة</title>
+    <meta name="description"
+    content="المدرسة الاهلية لتعليم السياقة - تعليم سياقة لجميع انواع المركبات خصوصي, عمومي, شحن, باص, تريلا - مدربة سياقة للنساء - دورات تؤوريا مجانا.">
+    <meta name="author" content="Suhaib Mujahid">
+    <link href="https://plus.google.com/102815813618791728657" rel="publisher">
+    <meta property="fb:app_id" content="501585543198528"/>
+    <meta property="fb:admins" content="683170611">
+    <meta name='robots' content='index, follow'>
+    <meta name='revisit-after' content='1 days'>
+    <base href='/'>
+    <!-- Mobile Meta -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <!-- Put favicon.ico and apple-touch-icon(s).png in the images folder -->
+    <link rel="shortcut icon" href="/favicon.ico">
+
+    <!-- CSS StyleSheets -->
+        <link rel="stylesheet" href="css/style-130816.css">
+
+
+    <!--[if lt IE 9]>
+    <link rel="stylesheet" href="css/ie.css">
+    <script type="text/javascript" src="js/html5.js"></script>
+    <![endif]-->
+
+
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-V9T2PDYEMF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-V9T2PDYEMF'
+    );
+</script>
+
+</head>
+<body class="bg1">
+
+
+<!-- site preloader start -->
+<div class="page-loader">
+    <div class="loader-in"></div>
+</div>
+<!-- site preloader end -->
+
+
+
+
+                                    
+
+<div class="pageWrapper fixedPage">
+
+<!-- login box start -->
+<div class="login-box">
+    <a class="close-login" href="#"><i class="fa fa-times"></i></a>
+    <form>
+        <div class="container">
+            <p>أهلا بك زائرنا العزيز ... يمكنك تصفح الموقع ومعرفة كل ما هو جديد و مفيد و ذو قيمة بالنسبة لك و تستطيع
+                الدخول من لوحة التسجيل التالية:</p>
+            <div class="login-controls">
+                <div class="skew-25 input-box left">
+                    <input type="text" class="txt-box skew25" placeholder="اسم المستخدم"/>
+                </div>
+                <div class="skew-25 input-box left">
+                    <input type="password" class="txt-box skew25" placeholder="كلمة المرور"/>
+                </div>
+                <div class="left skew-25 main-bg">
+                    <input type="submit" class="btn skew25" value="دخول"/>
+                </div>
+                <div class="check-box-box">
+                    <input type="checkbox" class="check-box"/><label>تذكرنى !</label>
+                    <a href="#">نسيت كلمة المرور ؟</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<!-- login box End -->
+
+<!-- Header Start -->
+<div id="headWrapper" class="clearfix">
+
+    <!-- top bar start -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="row">
+
+                <div class="cell-5">
+                    <ul>
+                                                <li><span><i class="fa fa-phone"></i>هاتف: 022291542</span></li>
+                        <li><span><i class="fa fa-mobile"></i>جوال: 0599210071</span></li>
+                        <li></li>
+                    </ul>
+
+                </div>
+
+                <div class="cell-7 right-bar right">
+                    <ul class="right">
+
+                                                    <li>
+                                <a  rel="nofollow"  id="facebook-login" href="/auth/facebook">
+                                    <i class="fa fa-facebook"></i>دخول باستخدام فيسبوك</a>
+                            </li>
+                        
+
+                    </ul>
+                </div>
+
+                                                                                                                                                                                                                                                                            </div>
+        </div>
+    </div>
+    <!-- top bar end -->
+
+    <!-- Logo, global navigation menu and search start -->
+    <header class="top-head" data-sticky="false">
+        <div class="container">
+            <div class="row">
+                <div class="logo cell-3">
+                    <a href="/"></a>
+                </div>
+                <div class="cell-9 top-menu">
+
+                    <!-- top navigation menu start -->
+                    <nav class="top-nav mega-menu">
+                        <ul>
+                            <li class="selected"><a href="/"><i class="fa fa-home"></i><span>الرئيسية</span></a>
+                            </li>
+                            <li><a href="/teoria/quiz"><i
+                                            class="fa fa-copy"></i><span>أسئلة التؤوريا</span></a>
+                                <ul>
+                                    <li><a href="/teoria/quiz/private">أسئلة تؤوريا خصوصي</a></li>
+                                    <li><a href="/teoria/quiz/truck">أسئلة تؤوريا شحن خفيف</a></li>
+                                    <li><a href="/teoria/quiz/taxi">أسئلة تؤوريا عمومي</a></li>
+                                    <li><a href="/teoria/quiz/motorcycle">أسئلة تؤوريا دراجة نارية</a></li>
+                                    <li><a href="/teoria/quiz/tractor">أسئلة تؤوريا تراكتور</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="/index.php?page=signals"><i
+                                            class="fa fa-suitcase"></i><span>دراسة التؤوريا</span></a>
+                                <ul>
+                                    <li><a href="/index.php?page=signals">اشارات المرور</a></li>
+                                    <li><a href="/index.php?page=Dosseh">كتاب التؤوريا</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="/license"><i
+                                            class="fa fa-book"></i><span>الحصول على رخصة</span></a>
+                                <ul>
+                                    <li><a href="/license/steps">إجراءات رخصة السياقة</a></li>
+                                    <li><a href="/license/services">مواعيد خدمات الدوائر</a></li>
+                                    <li><a href="/license/pricing/lessons">اسعار الدروس والتستات</a></li>
+                                    <li><a href="/license/pricing/courses">اسعار الدورات الاستكمالية</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="/contact"><i class="fa fa-phone"></i><span>اتصل بنا</span></a></li>
+                        </ul>
+                    </nav>
+                    <!-- top navigation menu end -->
+
+                    <!-- top search start -->
+                    <div class="top-search">
+                        <a href="#"><span class="fa fa-search"></span></a>
+                        <div class="search-box">
+                            <form action="/search" method="get">
+                                <div class="input-box left">
+                                    <input type="text" name="q" id="t-search" class="txt-box"
+                                           placeHolder="اكتب كلمة البحث هنا..."/>
+                                </div>
+                                <div class="left">
+                                    <input type="submit" id="b-search" class="btn main-bg" value="بحث"/>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- top search end -->
+                </div>
+            </div>
+        </div>
+    </header>
+
+
+    <!-- Logo, Global navigation menu and search end -->
+
+</div>
+<!-- Header End -->
+<!-- Content Start -->
+    <div id="contentWrapper">
+
+
+         <div class=sectionWrapper><div class=container><div class=not-found><p class="hint extraLarge">الصفحة التي تبحث عنها غير موجودة</p><hr class=hr-style3><div class=err-404>4<span class=main-color>0</span>4</div><hr class=hr-style3><p>حاول استخدام ادات البحث في الأعلى للوصول الى المحتوى الذي تريده، أو قم بالاطلاع على الأقسام الرئيسية للموقع والمبينة إدناه في تذييل الصفحة.</p><a class="btn btn-medium" href=/ >الرجوع للصفحة الرئيسية</a></div></div></div> 
+
+    </div>
+    <!-- Content End -->
+
+
+    <footer id="footWrapper">
+    <div class="footer-top footer-top-2">
+        <div class="container">
+            <div class="row">
+
+
+                <!-- footer cell 1 start -->
+                <div class="cell-3">
+                    <div class="foot-logo"></div>
+                    <p>المدرسة الاهلية لتعليم السياقة تأسست عام 2004 على يد المدرب والمدير المهني والمحاضر في قانون
+                        السير السيد إياد مجاهد في فلسطين بمدينة الخليل.</p>
+                    <ul class="social-list hover_links_effect">
+                        <li><a href="https://www.facebook.com/Al.Ahliya" target="_blank"><span class="fa fa-facebook"></span></a></li>
+                        <li><a href="https://twitter.com/Al_Ahliya" target="_blank"><span class="fa fa-twitter"></span></a></li>
+                        <li><a href="https://www.youtube.com/AhliyaDrivingSchool" target="_blank"><span class="fa fa-youtube"></span></a></li>
+
+                    </ul>
+                </div>
+                <!-- footer cell 1 start -->
+
+
+                <!-- main menu footer cell start -->
+                <div class="cell-3">
+                    <h3 class="block-head">أسئلة التؤوريا التدريبية</h3>
+                    <ul class="footer-menu">
+                        <li><a href="/teoria/quiz/private">أسئلة تؤوريا خصوصي</a></li>
+                        <li><a href="/teoria/quiz/truck">أسئلة تؤوريا شحن خفيف</a></li>
+                        <li><a href="/teoria/quiz/taxi">أسئلة تؤوريا عمومي</a></li>
+                        <li><a href="/teoria/quiz/motorcycle">أسئلة تؤوريا دراجة نارية</a></li>
+                        <li><a href="/teoria/quiz/tractor">أسئلة تؤوريا تراكتور</a></li>
+                    </ul>
+                </div>
+                <!-- main menu footer cell start -->
+
+
+                <!-- Useful Links footer cell start -->
+                <div class="cell-3">
+                    <h3 class="block-head">الحصول على رخصة</h3>
+                    <ul class="footer-menu">
+                        <li><a href="/license/steps">متطلبات رخصة السياقة</a></li>
+                        <li><a href="/license/services">مواعيد خدمة الدوائر</a></li>
+                        <li><a href="/license/pricing/lessons">اسعار الدروس والتستات</a></li>
+                        <li><a href="/index.php?page=signals">اشارات المرور</a></li>
+                        <li><a href="/index.php?page=Dosseh">كتاب التؤوريا</a></li>
+                    </ul>
+                </div>
+                <!-- Useful Links footer cell start -->
+
+                <!-- contact us footer cell start -->
+                <div class="cell-3">
+                    <h3 class="block-head">تواصل معنا</h3>
+                    <ul class="footer-contact">
+                        <li>
+                            <i class="fa fa-home"></i>
+                            <span>الخليل، الجلدة، مقابل ديوان آل مجاهد التميمي</span>
+                        </li>
+                        <li><i class="fa fa-phone"></i><span>هاتف: 022291542</span></li>
+                        <li><i class="fa fa-mobile"></i><span> جــوال: 0599210071</span></li>
+                        <li>
+                            <a href="https://goo.gl/maps/7eSC7ij1HGfkzkEi9">
+                                <i class="fa fa-map-marker"></i>
+                                <span>شاهدنا على الخريطة</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- contact us footer cell end -->
+            </div>
+        </div>
+    </div>
+
+    <!-- footer bottom bar start -->
+    <div class="footer-bottom">
+        <div class="container">
+            <div class="row">
+                <!-- footer copyrights left cell -->
+                <div class="copyrights cell-5">&copy; جميع الحقوق محفوظة لـ <b>المدرسة الأهلية لتعليم السياقة</b>
+                    2021. <span> <a href="/policies/privacy"> سياسات الخصوصية</a></span>
+                </div>
+
+                <!-- footer social links right cell start -->
+                <div class="cell-7">
+
+                    <ul class="footer-menu-inline">
+                        <li class="copyright pull-left">
+                            Made with <i class="glyphicon glyphicon-heart  fa fa-heart"></i> by <a href="https://www.linkedin.com/in/suhaibmujahid" target="_blank">Suhaib
+                                Mujahid</a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- footer social links right cell end -->
+
+            </div>
+        </div>
+    </div>
+    <!-- footer bottom bar end -->
+
+</footer>
+
+</div>
+
+
+<!-- Load JS Scripts -->
+<script src="js/scripts-130816.js"></script>
+
+
+<script>
+
+
+    var getCookie = function (cname) {
+        var name = cname + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    };
+
+//    $('#BetaWarning .close-box').on('click', function () {
+//        document.cookie = "closeDevInfo = 1";
+//        document.getElementById('BetaWarning').className = "hidden";
+//    });
+//
+//    if (getCookie("closeDevInfo") !== '1') {
+//        document.getElementById('BetaWarning').className = "box success-box";
+//    }
+
+    </script>
+
+
+
+
+
+</body>
+</html>

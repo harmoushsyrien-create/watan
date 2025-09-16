@@ -1,0 +1,55 @@
+[
+  {
+    "title": "الإشارات (الشاخصات)",
+    "id": "signals"
+  },
+  {
+    "title": "القانون",
+    "id": "law",
+    "items": [
+      { "name": "مكونات حركة السير", "id": "traffic-components" },
+      { "name": "درجات الرخص والعمر القانوني لها", "id": "license-grades" },
+      { "name": "الحالة الصحية والبيانات الشخصية", "id": "health-status" },
+      { "name": "المركبة تعريفها وانواعها", "id": "vehicle-types" },
+      { "name": "فاحص دائرة السير", "id": "traffic-examiner" },
+      { "name": "الوثائق", "id": "documents" },
+      { "name": "من المسؤول؟", "id": "responsibility" },
+      { "name": "الطريق", "id": "road" },
+      { "name": "المفترق", "id": "intersection" },
+      { "name": "سكة الحديد", "id": "railway" },
+      { "name": "الأنوار (الأضواء)", "id": "lights" },
+      { "name": "إعطاء الإشارة", "id": "signal-giving" },
+      { "name": "السرعة", "id": "speed" },
+      { "name": "الوقوف والتوقف", "id": "stopping" },
+      { "name": "سلطات سحب الرخص", "id": "license-withdrawal" },
+      { "name": "إيقاف المركبة", "id": "vehicle-stop" },
+      { "name": "الرجوع إلى الخلف", "id": "reverse" },
+      {
+        "name": "السير في الاتجاه المعاكس (حدوه فرس)",
+        "id": "wrong-direction"
+      },
+      { "name": "السير في المنعطفات", "id": "curves" },
+      { "name": "الاجتياز والعبور", "id": "overtaking" },
+      { "name": "الأولوية في الطاعة", "id": "obedience-priority" },
+      { "name": "حق الاولوية", "id": "right-of-way" },
+      { "name": "الاستدارات", "id": "turns" },
+      { "name": "مسافة الوقوف الآمن", "id": "safe-stopping-distance" }
+    ]
+  },
+  {
+    "title": "معرفة مركبة ميكانيكيا",
+    "id": "vehicle-mechanics",
+    "items": [
+      { "name": "ساعات المركبة", "id": "vehicle-gauges" },
+      { "name": "الزيت", "id": "oil" },
+      { "name": "المقود", "id": "steering-wheel" },
+      { "name": "المرايا وحزام الأمان", "id": "mirrors-seatbelt" },
+      { "name": "دعسات المركبة", "id": "pedals" },
+      { "name": "الروديتر", "id": "radiator" },
+      { "name": "الكربوريتر", "id": "carburetor" },
+      { "name": "الزجاج", "id": "glass" },
+      { "name": "العجلات", "id": "wheels" },
+      { "name": "كهرباء المركبة", "id": "vehicle-electrics" }
+    ]
+  }
+]

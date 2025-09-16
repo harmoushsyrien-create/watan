@@ -1,0 +1,7 @@
+.swiper-pagination-bullet {
+  background: #FFD600 !important; /* bright yellow */
+}
+
+.swiper-pagination-bullet-active {
+  background: #FFC107 !important; /* slightly deeper yellow for active */
+} 
